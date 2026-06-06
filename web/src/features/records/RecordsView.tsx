@@ -22,9 +22,9 @@ const STATUS_LABEL: Record<DispatchStatus, string> = {
 };
 
 const STATUS_COLOR: Record<DispatchStatus, string> = {
-  pending: "bg-white/10 text-amber-300 ring-amber-400/30",
-  assigned: "bg-white/10 text-sky-300 ring-sky-400/30",
-  resolved: "bg-white/10 text-emerald-300 ring-emerald-400/30",
+  pending: "bg-amber-500/12 text-amber-200 ring-amber-400/25",
+  assigned: "bg-primary/15 text-primary-soft ring-primary/25",
+  resolved: "bg-emerald-500/12 text-emerald-200 ring-emerald-400/25",
 };
 
 function Stat({ label, value }: { label: string; value: string | number }) {
@@ -152,7 +152,7 @@ export function RecordsView({
                   {canAssign && (
                     <button
                       onClick={() => onAssign?.(r.id, r.recommendedTeam)}
-                      className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1 text-xs font-semibold text-black transition hover:bg-primary-soft"
+                      className="btn-primary flex items-center gap-1.5 rounded-md px-3 py-1 text-xs"
                     >
                       <Send size={12} />
                       Ekip Yönlendir

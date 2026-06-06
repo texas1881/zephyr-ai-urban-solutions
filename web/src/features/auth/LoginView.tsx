@@ -89,7 +89,7 @@ export function LoginView() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-1 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-primary-soft disabled:opacity-60"
+            className="btn-primary mt-1 rounded-lg px-4 py-2.5 text-sm disabled:opacity-60"
           >
             {loading
               ? "Lütfen bekleyin…"

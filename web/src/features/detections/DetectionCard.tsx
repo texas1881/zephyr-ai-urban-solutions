@@ -18,7 +18,7 @@ export function DetectionCard({ detection, rank }: Props) {
       transition={{ delay: (rank - 1) * 0.04, duration: 0.25 }}
       className="glass flex items-center gap-4 rounded-2xl p-4"
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-semibold text-foreground">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-sm font-semibold text-primary-soft">
         {rank}
       </span>
 

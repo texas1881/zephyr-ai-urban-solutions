@@ -22,10 +22,8 @@ import {
   analyzeImagesWithVision,
   type VisionImageInput,
 } from "@/services/visionService";
-import {
-  analyzeSituationsWithHFVision,
-  type DirectionImageInput,
-} from "@/services/hfVisionService";
+import { analyzeWithDetectionPipeline } from "@/services/hfDetectionPipeline";
+import type { DirectionImageInput } from "@/services/huggingFaceService";
 import type { SituationAnalysis } from "@/services/situationAnalysis";
 import { generateReport } from "@/services/reportService";
 import { groupLabeled } from "@/features/analyze/labels";
@@ -76,9 +74,8 @@ function situationsToItems(situations: DetectedSituation[]): LabeledCount[] {
 /**
  * Analyzes a location by scanning four Street View directions
  * (front/right/back/left). Detection engine is a free Hugging Face multimodal
- * model (Qwen-VL) for precise situation detection (litter / road damage /
- * extreme dirt); falls back to Google Vision, then COCO object detection.
- * A comprehensive AI report is then generated separately (Gemini → HF → local).
+ * HF görüntü tanıma (OWLv2) → HF dil modeli; yedek Google Vision, DETR.
+ * Kapsamlı yorum raporu ayrı üretilir (Gemini → HF → local).
  *   GET /api/analyze?address=Başakşehir
  *   GET /api/analyze?lat=41.09&lng=28.80
  */
@@ -156,8 +153,10 @@ export async function GET(req: NextRequest) {
       mimeType: d.mimeType,
     }));
 
-    // Builds an AnalysisResult from a multimodal situation report (HF vision).
-    const buildFromSituations = (sit: SituationAnalysis): AnalysisResult => {
+    const buildFromSituations = (
+      sit: SituationAnalysis,
+      model: AnalysisResult["analysisModel"] = "hf-detection-llm",
+    ): AnalysisResult => {
       const litterItems = situationsToItems(sit.situations);
       const recommendedTeam = recommendTeam(sit.situations);
       const assessment =
@@ -184,7 +183,7 @@ export async function GET(req: NextRequest) {
         reportEngine: "local",
         cityOrder: "",
         aiAssessment: true,
-        analysisModel: "hf-vision",
+        analysisModel: model,
         situations: sit.situations,
         safetyRisk: sit.safetyRisk,
         recommendedTeam,
@@ -195,10 +194,10 @@ export async function GET(req: NextRequest) {
 
     let result: AnalysisResult;
 
-    // --- Primary: Hugging Face multimodal (Qwen-VL, free) ---
+    // --- Primary: HF görüntü tanıma (OWLv2) → HF dil modeli ---
     try {
       result = buildFromSituations(
-        await analyzeSituationsWithHFVision(finalAddress, input),
+        await analyzeWithDetectionPipeline(finalAddress, input),
       );
     } catch {
       // --- Fallback 1: Google Cloud Vision ---

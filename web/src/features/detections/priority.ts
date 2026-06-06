@@ -8,16 +8,16 @@ export const priorityLabel: Record<PriorityLevel, string> = {
 };
 
 export const priorityColor: Record<PriorityLevel, string> = {
-  low: "bg-white/10 text-emerald-300 ring-emerald-400/30",
-  medium: "bg-white/10 text-amber-300 ring-amber-400/30",
-  high: "bg-white/10 text-orange-300 ring-orange-400/30",
-  critical: "bg-white/10 text-red-300 ring-red-400/30",
+  low: "bg-slate-500/15 text-slate-300 ring-slate-400/25",
+  medium: "bg-amber-500/12 text-amber-200 ring-amber-400/25",
+  high: "bg-orange-500/12 text-orange-200 ring-orange-400/25",
+  critical: "bg-red-500/12 text-red-200 ring-red-400/25",
 };
 
 export function densityBarColor(score: number): string {
-  if (score >= 60) return "bg-red-400";
-  if (score >= 25) return "bg-white/70";
-  return "bg-white";
+  if (score >= 60) return "bg-red-500";
+  if (score >= 25) return "bg-amber-400";
+  return "bg-primary";
 }
 
 export function scoreToPriority(score: number): PriorityLevel {

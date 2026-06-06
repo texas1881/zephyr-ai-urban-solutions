@@ -7,6 +7,7 @@ import {
   isSituationType,
 } from "@/features/analyze/situations";
 import type { DetectedSituation, SafetyRisk } from "@/types/api";
+import { validateSituationAnalysis } from "@/services/situationValidation";
 
 export type SituationAnalysis = {
   densityScore: number;
@@ -19,32 +20,43 @@ export type SituationAnalysis = {
 };
 
 /** The detection instruction shared by every vision engine. */
-export const SITUATION_PROMPT = `Sen kıdemli bir belediye saha denetim uzmanısın. Sokak görüntülerinden çevresel temizlik ve altyapı sorunlarını YÜKSEK HASSASİYETLE, gözden kaçırmadan tespit edersin.
+export const SITUATION_PROMPT = `Sen kıdemli bir belediye saha denetim uzmanısın. Görevin YÜKSEK DOĞRULUKLA, yalnızca görüntüde NET ve BELİRGİN sorunları raporlamaktır. Şüpheli veya muğlak bulguları RAPOR ETME.
 Sana aynı konumun DÖRT yönüne (ön/arka/sağ/sol) ait Google Street View görselleri veriliyor.
 
 ÇALIŞMA YÖNTEMİ (içsel; çıktıya yazma):
-1. Her görseli TEK TEK, sistematik tara: zemin/asfalt, kaldırım, duvarlar, köşeler, çöp kutuları, kenarlar.
-2. Küçük ama gerçek sorunları da yakala (tek tük çöp, küçük çatlak gibi) ama abartma.
-3. Aynı sorunu birden çok yönde görürsen her yön için ayrı kayıt yazma; en net göründüğü yönü kullan.
+1. Her görseli TEK TEK incele: zemin, kaldırım, duvar, çöp kutusu, köşe alanları.
+2. Bir sorunu raporlamadan önce şu soruyu sor: "Bu gerçekten bir müdahale gerektiren sorun mu, yoksa normal kent görünümü mü?"
+3. Aynı sorun birden fazla yönde görünüyorsa TEK kayıt yaz; en net göründüğü yönü kullan.
+4. Gölge, bulanıklık, uzaklık veya düşük çözünürlük nedeniyle emin olamadığın şeyleri ATLA.
 
-TESPİT EDİLECEK DURUM TİPLERİ:
-- cop_kirliligi: yerde dağılmış çöp, atık, izmarit, kağıt, poşet
-- asiri_kirli: yoğun çöp birikimi, çöp yığını, dökülmüş atık
-- dolu_cop_kutusu: taşmış/dolu çöp kutusu veya konteyner
-- yol_hasari: çukur, çatlak, bozuk asfalt, hasarlı/çökmüş kaldırım
-- moloz_hafriyat: moloz, inşaat atığı, hafriyat yığını, kum/çakıl
-- grafiti: duvar/yüzeylerde grafiti, karalama, izinsiz afiş
-- kaldirim_isgali: kaldırımı kapatan engel, dağınık malzeme, seyyar yığın
-- bozuk_tabela: eğik/kırık/paslı tabela, devrilmiş levha, bozuk durak
-- su_birikintisi: yolda/kaldırımda su birikmesi, tıkalı gider
-- yabani_ot: bakımsız yeşil alan, kaldırımdan çıkan yabani ot
+TESPİT EDİLECEK DURUM TİPLERİ (yalnızca açık kanıt varsa):
+- cop_kirliligi: yerde BELİRGİN dağılmış çöp/atık (tek poşet değil, net görünür kirlilik)
+- asiri_kirli: yoğun çöp birikimi veya çöp yığını
+- dolu_cop_kutusu: taşmış veya açıkça dolu çöp kutusu/konteyner
+- yol_hasari: belirgin çukur, geniş çatlak veya ciddi asfalt/kaldırım hasarı
+- moloz_hafriyat: moloz, inşaat atığı veya hafriyat yığını
+- grafiti: duvar/yüzeyde net grafiti veya izinsiz büyük karalama
+- kaldirim_isgali: kaldırımı fiilen kapatan engel veya malzeme yığını
+- bozuk_tabela: eğik, kırık veya devrilmiş tabela/levha
+- su_birikintisi: yolda/kaldırımda belirgin su birikintisi
+- yabani_ot: kaldırımdan taşan veya bakımsız yabani ot (normal ağaç/bitki DEĞİL)
 
-KESİN KURALLAR (KVKK + doğruluk):
-- İnsan, araç, yangın musluğu, bank, ağaç, bisiklet gibi NORMAL kent ögelerini ASLA sorun sayma.
-- Kalabalık, trafik veya park etmiş araç bir bölgeyi kirli YAPMAZ.
-- Kişi/plaka tanımaya çalışma; yalnızca cansız çevre unsurlarını değerlendir.
-- Emin olmadığın tespit için confidence değerini düşük ver (0.3-0.5), uydurma.
-- Hiçbir sorun yoksa situations boş kalsın, cleanliness "Temiz", safetyRisk "dusuk".
+YANLIŞ POZİTİF — ASLA SORUN SAYMA:
+- İnsan, araç, bisiklet, bank, ağaç, çalı, sokak lambası, trafik işareti
+- Park etmiş araçlar, trafik, kalabalık, normal dükkan vitrinleri
+- Gölge, ıslak zemin yansıması, uzaktaki bulanık nesneler
+- Tek tük küçük leke veya şüpheli piksel; emin değilsen ATLA
+- Kişi/plaka tanımlama; yalnızca cansız çevre unsurları
+
+GÜVEN SKORU KURALLARI:
+- confidence ≥ 0.75: görüntüde açıkça görülen, tartışmasız sorun
+- confidence 0.65–0.74: net ama kısmen gizli sorun
+- confidence < 0.65: RAPOR ETME — situations listesine ekleme
+- Uydurma veya tahmine dayalı tespit YASAK
+
+SONUÇ:
+- Belirgin sorun yoksa situations = [], cleanliness = "Temiz", densityScore ≤ 10, safetyRisk = "dusuk"
+- summary'de yalnızca doğrulanmış bulguları özetle; abartma yapma
 
 SADECE şu JSON şemasında yanıt ver, başka hiçbir metin/markdown ekleme:
 {
@@ -147,11 +159,11 @@ export function parseSituationResponse(text: string): SituationAnalysis {
           ? "orta"
           : "dusuk";
 
-  return {
+  return validateSituationAnalysis({
     densityScore,
     cleanliness,
     summary: str(parsed.summary),
     safetyRisk,
     situations,
-  };
+  });
 }

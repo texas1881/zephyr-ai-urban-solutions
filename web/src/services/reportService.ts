@@ -134,7 +134,10 @@ async function tryGemini(prompt: string): Promise<string | null> {
 async function tryHF(prompt: string): Promise<string | null> {
   const token = process.env.HUGGINGFACE_API_TOKEN;
   if (!token) return null;
-  const model = process.env.HF_REPORT_MODEL || "Qwen/Qwen3-VL-8B-Instruct";
+  const model =
+    process.env.HF_REPORT_MODEL ||
+    process.env.HF_SYNTHESIS_MODEL ||
+    "Qwen/Qwen2.5-7B-Instruct";
   try {
     const res = await fetchWithTimeout(
       HF_ROUTER,

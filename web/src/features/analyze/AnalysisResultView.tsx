@@ -40,9 +40,9 @@ const RISK_LABEL: Record<SafetyRisk, string> = {
 };
 
 const RISK_COLOR: Record<SafetyRisk, string> = {
-  dusuk: "bg-white/10 text-emerald-300 ring-emerald-400/30",
-  orta: "bg-white/10 text-amber-300 ring-amber-400/30",
-  yuksek: "bg-white/10 text-red-300 ring-red-400/30",
+  dusuk: "bg-slate-500/15 text-slate-300 ring-slate-400/25",
+  orta: "bg-amber-500/12 text-amber-200 ring-amber-400/25",
+  yuksek: "bg-red-500/12 text-red-200 ring-red-400/25",
 };
 
 /** Real SVG icon per situation type (lucide). */
@@ -76,13 +76,15 @@ export function AnalysisResultView({
   const [pano, setPano] = useState(false);
 
   const modelLabel =
-    result.analysisModel === "hf-vision"
-      ? "Yapay zekâ görsel analizi"
-      : result.analysisModel === "gemini"
+    result.analysisModel === "hf-detection-llm"
+      ? "Görüntü tanıma + dil modeli"
+      : result.analysisModel === "hf-vision"
         ? "Yapay zekâ görsel analizi"
-        : result.analysisModel === "vision"
-          ? "Google Vision"
-          : "Nesne tespiti";
+        : result.analysisModel === "gemini"
+          ? "Yapay zekâ görsel analizi"
+          : result.analysisModel === "vision"
+            ? "Google Vision"
+            : "Nesne tespiti";
 
   const reportLabel =
     result.reportEngine === "gemini"
@@ -101,20 +103,20 @@ export function AnalysisResultView({
     : null;
 
   return (
-    <div className="glass-strong scroll-mt-24 rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+    <div className="glass-strong scroll-mt-24 rounded-2xl border border-line">
       {/* 1) Sokak görüntüsü üstte — kaydırınca yukarı çıkar. */}
       <div className="overflow-hidden rounded-t-3xl">
         {panoUrl && (
-          <div className="flex items-center justify-between gap-1 border-b border-white/10 bg-black/40 px-3 py-2">
+          <div className="flex items-center justify-between gap-1 border-b border-line bg-background/80 px-3 py-2">
             <span className="text-[10px] uppercase tracking-[0.14em] text-muted">
               Sokak görüntüsü
             </span>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setPano(false)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition ${
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition ${
                   !pano
-                    ? "bg-white text-black"
+                    ? "bg-primary/20 text-primary-soft ring-1 ring-inset ring-primary/30"
                     : "text-muted hover:text-foreground"
                 }`}
               >
@@ -123,8 +125,10 @@ export function AnalysisResultView({
               </button>
               <button
                 onClick={() => setPano(true)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition ${
-                  pano ? "bg-white text-black" : "text-muted hover:text-foreground"
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition ${
+                  pano
+                    ? "bg-primary/20 text-primary-soft ring-1 ring-inset ring-primary/30"
+                    : "text-muted hover:text-foreground"
                 }`}
               >
                 <Compass size={13} />
@@ -164,7 +168,7 @@ export function AnalysisResultView({
       </div>
 
       {/* 2) Analiz özeti: aşağı kaydırınca menünün altında sabit kalır. */}
-      <div className="sticky top-20 z-30 max-h-[min(82vh,calc(100dvh-6rem))] overflow-y-auto overscroll-contain rounded-b-3xl border-t border-white/10 bg-black/90 shadow-[0_-4px_32px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+      <div className="sticky top-[4.5rem] z-30 max-h-[min(82vh,calc(100dvh-6rem))] overflow-y-auto overscroll-contain rounded-b-2xl border-t border-line bg-background/95 backdrop-blur-xl">
         <div className="flex flex-col gap-6 p-6">
         <div>
           <div className="flex items-center justify-between gap-3">
@@ -229,7 +233,7 @@ export function AnalysisResultView({
                 className="glass flex items-start justify-between gap-3 rounded-xl p-3"
               >
                 <div className="flex min-w-0 gap-3">
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10 text-foreground">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary-soft">
                     <Icon size={15} />
                   </span>
                   <div className="min-w-0">
@@ -293,7 +297,7 @@ export function AnalysisResultView({
               canDispatch && (
                 <button
                   onClick={() => onDispatch?.(result.recommendedTeam)}
-                  className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-primary-soft"
+                  className="btn-primary flex items-center gap-2 rounded-lg px-4 py-2 text-sm"
                 >
                   <Send size={15} />
                   Ekip Yönlendir

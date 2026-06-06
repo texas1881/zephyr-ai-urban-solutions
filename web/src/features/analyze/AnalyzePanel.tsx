@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Loader2, MapPin, Sparkles } from "lucide-react";
+import { AlertTriangle, Loader2, MapPin, ScanSearch } from "lucide-react";
 import type {
   AnalysisRecord,
   AnalysisResult,
@@ -78,13 +78,13 @@ export function AnalyzePanel({ onAnalyzed, onDispatch }: Props) {
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="Adres veya mahalle girin (örn. Başakşehir)"
-            className="w-full rounded-xl border border-line bg-black/30 py-3 pl-10 pr-3 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-white/40"
+            className="w-full rounded-lg border border-line bg-background/60 py-3 pl-10 pr-3 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-primary/50 focus:ring-1 focus:ring-primary/25"
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-primary-soft disabled:opacity-50"
+          className="btn-primary flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm"
         >
           {loading ? (
             <>
@@ -93,7 +93,7 @@ export function AnalyzePanel({ onAnalyzed, onDispatch }: Props) {
             </>
           ) : (
             <>
-              <Sparkles size={16} />
+              <ScanSearch size={16} />
               Çevreyi Analiz Et
             </>
           )}
@@ -109,7 +109,7 @@ export function AnalyzePanel({ onAnalyzed, onDispatch }: Props) {
               setAddress(s);
               analyze(s);
             }}
-            className="rounded-full border border-line bg-surface px-3 py-1 text-foreground/80 transition hover:border-white/40 hover:text-foreground"
+            className="btn-outline rounded-md px-3 py-1 text-xs"
           >
             {s}
           </button>

@@ -69,8 +69,8 @@ export async function analyzeSituationsWithHFVision(
       body: JSON.stringify({
         model,
         messages: [{ role: "user", content }],
-        temperature: 0.15,
-        top_p: 0.9,
+        temperature: 0.08,
+        top_p: 0.85,
         max_tokens: 2048,
       }),
       signal: ctrl.signal,

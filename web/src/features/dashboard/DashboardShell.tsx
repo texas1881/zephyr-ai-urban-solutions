@@ -82,7 +82,7 @@ export function DashboardShell() {
       <DynamicNav items={NAV_ITEMS} active={view} onChange={setView} />
 
       {/* Dynamic Island altında boşluk — içerik menünün altına girmez */}
-      <div className="h-14 shrink-0" aria-hidden />
+      <div className="h-[4.5rem] shrink-0" aria-hidden />
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -136,7 +136,7 @@ export function DashboardShell() {
                   </p>
                   <button
                     onClick={() => setView("analiz")}
-                    className="mt-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-primary-soft"
+                    className="btn-primary mt-2 rounded-lg px-4 py-2 text-sm"
                   >
                     Analize başla
                   </button>

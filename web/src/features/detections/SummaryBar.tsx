@@ -16,7 +16,7 @@ function Stat({
 }) {
   return (
     <div className="glass flex items-center gap-3 rounded-2xl px-5 py-4">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-foreground">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary-soft">
         <Icon size={17} />
       </span>
       <div className="flex flex-col">
