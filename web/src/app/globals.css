@@ -78,3 +78,20 @@ body {
     background-position: 200% 0;
   }
 }
+
+/* Dynamic Island — canlı cam kabuk + dış glow */
+.island-shell {
+  background: rgba(18, 18, 20, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+}
+
+.island-glow {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 255, 255, 0.18) 0%,
+    transparent 70%
+  );
+  filter: blur(10px);
+}

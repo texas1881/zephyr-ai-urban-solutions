@@ -81,6 +81,9 @@ export function DashboardShell() {
 
       <DynamicNav items={NAV_ITEMS} active={view} onChange={setView} />
 
+      {/* Dynamic Island altında boşluk — içerik menünün altına girmez */}
+      <div className="h-14 shrink-0" aria-hidden />
+
       <AnimatePresence mode="wait">
         <motion.div
           key={view}
