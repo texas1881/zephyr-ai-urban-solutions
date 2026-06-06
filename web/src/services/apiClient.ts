@@ -66,6 +66,9 @@ export async function apiRequest<T>(
   const data = text ? JSON.parse(text) : null;
 
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== "undefined") {
+      setToken(null);
+    }
     const message =
       (data && (data.message || data.error)) || `İstek başarısız (${res.status})`;
     throw new ApiError(res.status, message);

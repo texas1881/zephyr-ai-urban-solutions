@@ -157,10 +157,35 @@ make run        # http://localhost:8080  (Docker gerektirir)
 Web paneli `NEXT_PUBLIC_BACKEND_URL` tanımlıysa kayıtları bu API'ye gönderir;
 tanımlı değilse veriyi tarayıcıda (localStorage) biriktirir.
 
-## Deploy
+## Deploy (Render + Vercel)
 
-- **Web → Vercel:** `web/` klasörü kök (root) olacak şekilde Vercel'e bağlanır; ortam değişkenleri Vercel panelinden tanımlanır.
-- **Backend → Render.com:** `backend/` klasörü Go servisi olarak deploy edilir.
+### 1. Backend → Render.com
+
+1. [render.com](https://render.com) → **New** → **Blueprint**
+2. `texas1881/zephyr-ai-urban-solutions` reposunu bağla
+3. Kökteki `render.yaml` otomatik olarak **Postgres** + **zephyr-backend** web servisini oluşturur
+4. Deploy bitince URL: `https://zephyr-backend.onrender.com`
+5. İlk açılışta migration'lar otomatik çalışır; `GET /health/live` ile kontrol edin
+
+### 2. Web → Vercel
+
+1. Vercel projesinde **Root Directory** = `web`
+2. Production ortam değişkenleri (Vercel → Settings → Environment Variables):
+
+| Değişken | Açıklama |
+|----------|----------|
+| `NEXT_PUBLIC_BACKEND_URL` | `https://zephyr-backend.onrender.com` |
+| `GEMINI_API_KEY` | Google AI Studio `AIza...` anahtarı |
+| `GOOGLE_STREET_VIEW_API_KEY` | Street View + Geocoding |
+| `HUGGINGFACE_API_TOKEN` | Yedek nesne tespiti |
+
+3. `NEXT_PUBLIC_BACKEND_URL` dolu olduğunda panel **login zorunlu** olur; kayıtlar JWT ile backend'e senkronlanır.
+4. Boş bırakılırsa demo modu (localStorage, auth kapalı) devam eder.
+
+```bash
+cd web
+vercel --prod
+```
 
 ## Ekip
 

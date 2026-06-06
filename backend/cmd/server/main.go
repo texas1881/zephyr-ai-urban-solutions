@@ -88,6 +88,19 @@ func run() error {
 	} else {
 		defer db.Close()
 		log.Info("connected to postgres")
+
+		migrationDir := os.Getenv("MIGRATIONS_DIR")
+		if migrationDir == "" {
+			migrationDir = "internal/infrastructure/postgres/migrations"
+		}
+		if _, statErr := os.Stat(migrationDir); statErr != nil {
+			migrationDir = "/app/migrations"
+		}
+		if migErr := database.RunMigrations(ctx, db, migrationDir); migErr != nil {
+			log.Warn("database migrations failed", "error", migErr, "dir", migrationDir)
+		} else {
+			log.Info("database migrations applied", "dir", migrationDir)
+		}
 	}
 
 	// Initialize Redis

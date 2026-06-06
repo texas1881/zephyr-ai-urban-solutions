@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -83,8 +84,9 @@ type LogConfig struct {
 }
 
 // Load reads configuration from environment variables with sensible defaults.
+// Render.com sets PORT and DATABASE_URL; both are honoured automatically.
 func Load() *Config {
-	return &Config{
+	cfg := &Config{
 		Server: ServerConfig{
 			Host:         envOrDefault("SERVER_HOST", "0.0.0.0"),
 			Port:         envOrDefaultInt("SERVER_PORT", 8080),
@@ -125,6 +127,58 @@ func Load() *Config {
 			Format: envOrDefault("LOG_FORMAT", "json"),
 		},
 	}
+
+	applyPlatformOverrides(cfg)
+	return cfg
+}
+
+// applyPlatformOverrides maps PaaS-specific env vars (Render PORT / DATABASE_URL).
+func applyPlatformOverrides(cfg *Config) {
+	if port := os.Getenv("PORT"); port != "" {
+		if p, err := strconv.Atoi(port); err == nil {
+			cfg.Server.Port = p
+		}
+	}
+	if raw := os.Getenv("DATABASE_URL"); raw != "" {
+		if parsed, err := parseDatabaseURL(raw); err == nil {
+			cfg.Database = parsed
+		}
+	}
+}
+
+func parseDatabaseURL(raw string) (DatabaseConfig, error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return DatabaseConfig{}, err
+	}
+
+	port := 5432
+	if p := u.Port(); p != "" {
+		port, err = strconv.Atoi(p)
+		if err != nil {
+			return DatabaseConfig{}, fmt.Errorf("invalid db port: %w", err)
+		}
+	}
+
+	user := u.User.Username()
+	pass, _ := u.User.Password()
+	dbName := strings.TrimPrefix(u.Path, "/")
+
+	sslmode := u.Query().Get("sslmode")
+	if sslmode == "" {
+		sslmode = "require"
+	}
+
+	return DatabaseConfig{
+		Host:     u.Hostname(),
+		Port:     port,
+		User:     user,
+		Password: pass,
+		DBName:   dbName,
+		SSLMode:  sslmode,
+		MaxConns: int32(envOrDefaultInt("DB_MAX_CONNS", 25)),
+		MinConns: int32(envOrDefaultInt("DB_MIN_CONNS", 2)),
+	}, nil
 }
 
 func envOrDefault(key, defaultVal string) string {
