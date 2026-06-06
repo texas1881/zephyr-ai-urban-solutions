@@ -32,6 +32,8 @@ func main() {
 		cleanlinessUC.NewGetStatsUseCase(repo),
 		cleanlinessUC.NewDeleteRecordUseCase(repo),
 		cleanlinessUC.NewClearRecordsUseCase(repo),
+		cleanlinessUC.NewAssignTeamUseCase(repo),
+		cleanlinessUC.NewUpdateStatusUseCase(repo),
 	)
 
 	r := chi.NewRouter()

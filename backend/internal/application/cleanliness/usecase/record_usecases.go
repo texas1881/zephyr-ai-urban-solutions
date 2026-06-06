@@ -86,3 +86,57 @@ func NewClearRecordsUseCase(repo repository.RecordRepository) *ClearRecordsUseCa
 func (uc *ClearRecordsUseCase) Execute(ctx context.Context) error {
 	return uc.repo.Clear(ctx)
 }
+
+// AssignTeamUseCase dispatches a team to a record.
+type AssignTeamUseCase struct {
+	repo repository.RecordRepository
+}
+
+func NewAssignTeamUseCase(repo repository.RecordRepository) *AssignTeamUseCase {
+	return &AssignTeamUseCase{repo: repo}
+}
+
+func (uc *AssignTeamUseCase) Execute(ctx context.Context, id, team string) (*model.Record, error) {
+	if strings.TrimSpace(id) == "" {
+		return nil, domainErr.New(domainErr.ErrBadRequest, "id zorunludur", nil)
+	}
+	if strings.TrimSpace(team) == "" {
+		return nil, domainErr.New(domainErr.ErrValidation, "team zorunludur", nil)
+	}
+	rec, err := uc.repo.Assign(ctx, id, team)
+	if err != nil {
+		return nil, domainErr.New(domainErr.ErrInternal, "ekip yönlendirilemedi", err)
+	}
+	if rec == nil {
+		return nil, domainErr.New(domainErr.ErrNotFound, "kayıt bulunamadı", nil)
+	}
+	return rec, nil
+}
+
+// UpdateStatusUseCase updates a record's dispatch status.
+type UpdateStatusUseCase struct {
+	repo repository.RecordRepository
+}
+
+func NewUpdateStatusUseCase(repo repository.RecordRepository) *UpdateStatusUseCase {
+	return &UpdateStatusUseCase{repo: repo}
+}
+
+func (uc *UpdateStatusUseCase) Execute(ctx context.Context, id, status string) (*model.Record, error) {
+	if strings.TrimSpace(id) == "" {
+		return nil, domainErr.New(domainErr.ErrBadRequest, "id zorunludur", nil)
+	}
+	switch status {
+	case model.StatusPending, model.StatusAssigned, model.StatusResolved:
+	default:
+		return nil, domainErr.New(domainErr.ErrValidation, "geçersiz durum", nil)
+	}
+	rec, err := uc.repo.UpdateStatus(ctx, id, status)
+	if err != nil {
+		return nil, domainErr.New(domainErr.ErrInternal, "durum güncellenemedi", err)
+	}
+	if rec == nil {
+		return nil, domainErr.New(domainErr.ErrNotFound, "kayıt bulunamadı", nil)
+	}
+	return rec, nil
+}

@@ -209,6 +209,8 @@ func buildDependencies(
 		cleanlinessUC.NewGetStatsUseCase(cleanlinessRepo),
 		cleanlinessUC.NewDeleteRecordUseCase(cleanlinessRepo),
 		cleanlinessUC.NewClearRecordsUseCase(cleanlinessRepo),
+		cleanlinessUC.NewAssignTeamUseCase(cleanlinessRepo),
+		cleanlinessUC.NewUpdateStatusUseCase(cleanlinessRepo),
 	)
 
 	if db == nil {

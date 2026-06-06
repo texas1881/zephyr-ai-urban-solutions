@@ -88,10 +88,23 @@ func New(deps Dependencies) *chi.Mux {
 			}
 		})
 
-		// Cleanliness data-accumulation API (public for the demo web app).
-		if deps.CleanlinessHandler != nil {
-			r.Mount("/cleanliness", deps.CleanlinessHandler.Routes())
-		}
+		// Zephyr field-management group: JWT-protected, but WITHOUT the
+		// tenant-resolver/gateway pipeline (lighter auth for the demo app).
+		r.Group(func(r chi.Router) {
+			if deps.AuthService != nil {
+				r.Use(middleware.JWTAuth(deps.AuthService))
+			}
+
+			// Current authenticated user (used by the web AuthProvider).
+			if deps.IAMHandler != nil {
+				r.Get("/me", deps.IAMHandler.GetMe)
+			}
+
+			// Cleanliness data-accumulation + dispatch API.
+			if deps.CleanlinessHandler != nil {
+				r.Mount("/cleanliness", deps.CleanlinessHandler.Routes())
+			}
+		})
 
 		// Protected routes (require JWT)
 		r.Group(func(r chi.Router) {
@@ -111,9 +124,8 @@ func New(deps Dependencies) *chi.Mux {
 				r.Use(deps.GatewayPipeline.Enforce)
 			}
 
-			// User routes
+			// User routes (/me is served by the lighter JWT-only group above)
 			if deps.IAMHandler != nil {
-				r.Get("/me", deps.IAMHandler.GetMe)
 				r.Route("/users", func(r chi.Router) {
 					r.Get("/", deps.IAMHandler.ListUsers)
 					r.Get("/{id}", deps.IAMHandler.GetUser)

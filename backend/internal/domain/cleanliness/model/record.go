@@ -5,10 +5,27 @@ package model
 
 import "time"
 
+// Dispatch status values for a record.
+const (
+	StatusPending  = "pending"
+	StatusAssigned = "assigned"
+	StatusResolved = "resolved"
+)
+
 // DetectedObject is a single object returned by the AI image-analysis step.
 type DetectedObject struct {
 	Label string  `json:"label"`
 	Score float64 `json:"score"`
+}
+
+// Situation is a single field situation detected by the vision model
+// (litter, road damage, extreme dirt, ...).
+type Situation struct {
+	Type        string  `json:"type"`
+	Severity    string  `json:"severity"`
+	Confidence  float64 `json:"confidence"`
+	Description string  `json:"description"`
+	Direction   string  `json:"direction"`
 }
 
 // Record is a persisted cleanliness/litter analysis for a location
@@ -24,7 +41,13 @@ type Record struct {
 	Cleanliness   string           `json:"cleanliness"`
 	StreetViewURL string           `json:"streetViewUrl"`
 	Objects       []DetectedObject `json:"objects"`
-	CreatedAt     time.Time        `json:"createdAt"`
+	// Field-management state
+	Situations      []Situation `json:"situations"`
+	RecommendedTeam string      `json:"recommendedTeam"`
+	Status          string      `json:"status"`
+	AssignedTeam    string      `json:"assignedTeam"`
+	Note            string      `json:"note"`
+	CreatedAt       time.Time   `json:"createdAt"`
 }
 
 // Stats is an aggregate summary computed over the accumulated records.

@@ -13,6 +13,9 @@ import (
 	"github.com/masterfabric-go/masterfabric/internal/shared/validator"
 )
 
+// Teams is the static list of municipal field teams.
+var Teams = []string{"Temizlik Ekibi", "Yol Bakım Ekibi"}
+
 // Handler provides Cleanliness HTTP handlers.
 type Handler struct {
 	saveUC   *usecase.SaveRecordUseCase
@@ -20,6 +23,8 @@ type Handler struct {
 	statsUC  *usecase.GetStatsUseCase
 	deleteUC *usecase.DeleteRecordUseCase
 	clearUC  *usecase.ClearRecordsUseCase
+	assignUC *usecase.AssignTeamUseCase
+	statusUC *usecase.UpdateStatusUseCase
 }
 
 // NewHandler creates a new Cleanliness handler.
@@ -29,6 +34,8 @@ func NewHandler(
 	statsUC *usecase.GetStatsUseCase,
 	deleteUC *usecase.DeleteRecordUseCase,
 	clearUC *usecase.ClearRecordsUseCase,
+	assignUC *usecase.AssignTeamUseCase,
+	statusUC *usecase.UpdateStatusUseCase,
 ) *Handler {
 	return &Handler{
 		saveUC:   saveUC,
@@ -36,6 +43,8 @@ func NewHandler(
 		statsUC:  statsUC,
 		deleteUC: deleteUC,
 		clearUC:  clearUC,
+		assignUC: assignUC,
+		statusUC: statusUC,
 	}
 }
 
@@ -47,6 +56,9 @@ func (h *Handler) Routes() chi.Router {
 	r.Get("/records/stats", h.Stats)
 	r.Delete("/records", h.Clear)
 	r.Delete("/records/{id}", h.Delete)
+	r.Post("/records/{id}/assign", h.Assign)
+	r.Post("/records/{id}/status", h.UpdateStatus)
+	r.Get("/teams", h.ListTeams)
 	return r
 }
 
@@ -103,4 +115,41 @@ func (h *Handler) Clear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]bool{"cleared": true})
+}
+
+// Assign dispatches a team to a record.
+func (h *Handler) Assign(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var req dto.AssignTeamRequest
+	if err := validator.DecodeAndValidate(r, &req); err != nil {
+		response.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	record, err := h.assignUC.Execute(r.Context(), id, req.Team)
+	if err != nil {
+		response.Error(w, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, record)
+}
+
+// UpdateStatus updates the dispatch status of a record.
+func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var req dto.UpdateStatusRequest
+	if err := validator.DecodeAndValidate(r, &req); err != nil {
+		response.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	record, err := h.statusUC.Execute(r.Context(), id, req.Status)
+	if err != nil {
+		response.Error(w, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, record)
+}
+
+// ListTeams returns the static list of municipal field teams.
+func (h *Handler) ListTeams(w http.ResponseWriter, _ *http.Request) {
+	response.JSON(w, http.StatusOK, Teams)
 }

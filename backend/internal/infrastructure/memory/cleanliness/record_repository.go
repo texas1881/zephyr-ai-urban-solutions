@@ -94,3 +94,28 @@ func (m *MemoryRecordRepository) Clear(_ context.Context) error {
 	m.records = m.records[:0]
 	return nil
 }
+
+func (m *MemoryRecordRepository) Assign(_ context.Context, id, team string) (*model.Record, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, r := range m.records {
+		if r.ID == id {
+			r.AssignedTeam = team
+			r.Status = model.StatusAssigned
+			return r, nil
+		}
+	}
+	return nil, nil
+}
+
+func (m *MemoryRecordRepository) UpdateStatus(_ context.Context, id, status string) (*model.Record, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, r := range m.records {
+		if r.ID == id {
+			r.Status = status
+			return r, nil
+		}
+	}
+	return nil, nil
+}
