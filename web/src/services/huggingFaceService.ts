@@ -3,6 +3,7 @@
  * Zero-shot (OWL) + DETR paralel çalışır, sonuçlar birleştirilir.
  */
 
+import { isPollutionLabel } from "@/features/analyze/detectionFilters";
 import { LITTER_LABELS } from "@/features/analyze/labels";
 import { URBAN_QUERY_LABELS } from "@/features/analyze/urbanQueries";
 
@@ -102,7 +103,10 @@ function parseDetectionArray(
       if (!label || !Number.isFinite(score)) return null;
       return { label, score, box: normalizeBox(r) };
     })
-    .filter((d): d is HFDetection => d !== null && d.score >= floor)
+    .filter(
+      (d): d is HFDetection =>
+        d !== null && d.score >= floor && isPollutionLabel(d.label),
+    )
     .sort((a, b) => b.score - a.score);
 }
 

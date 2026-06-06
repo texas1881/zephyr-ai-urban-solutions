@@ -33,8 +33,17 @@ export function reportContradictsContext(
     return ISSUE_PATTERNS.some((p) => p.test(report));
   }
 
-  // Reject obvious nonsense unrelated to urban inspection
   if (/tarım/i.test(report) && ctx.densityScore < 15) return true;
+
+  // Araç/insan kirlilik olarak yazılmışsa reddet
+  if (
+    /\b(araç|otomobil|car|kamyon|otobüs|bisiklet|yaya|insan)\b.*\b(çöp|kirlilik|atık|tespit|sorun|kirlilik)\b/i.test(
+      report,
+    ) ||
+    /\b(çöp|kirlilik|atık).*\b(araç|otomobil|car)\b/i.test(report)
+  ) {
+    return true;
+  }
 
   return false;
 }

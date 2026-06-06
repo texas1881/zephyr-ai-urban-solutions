@@ -1,4 +1,3 @@
-// Shared prompt + response parser for multimodal situation detection.
 // Shared prompt + JSON parser for HF vision-language detection (Qwen-VL).
 
 import {
@@ -40,9 +39,10 @@ TESPİT EDİLECEK DURUM TİPLERİ (görüntüde görünüyorsa raporla):
 - su_birikintisi: yolda/kaldırımda belirgin su birikintisi
 - yabani_ot: kaldırımdan taşan veya bakımsız yabani ot (normal ağaç/bitki DEĞİL)
 
-YANLIŞ POZİTİF — ASLA SORUN SAYMA:
-- İnsan, araç, bisiklet, bank, ağaç, çalı, sokak lambası, trafik işareti
-- Park etmiş araçlar, trafik, kalabalık, normal dükkan vitrinleri
+YANLIŞ POZİTİF — ASLA SORUN SAYMA (description'da araç/insan geçerse situations'a EKLEME):
+- İnsan, araç (car), otomobil, kamyon, otobüs, bisiklet, motosiklet
+- Park etmiş veya yolda duran araçlar KİRLİLİK DEĞİLDİR — asla cop_kirliligi yazma
+- Bank, ağaç, çalı, sokak lambası, trafik işareti, dükkan vitrinleri
 - Gölge, ıslak zemin yansıması, uzaktaki bulanık nesneler
 - Tek tük küçük leke veya şüpheli piksel; emin değilsen ATLA
 - Kişi/plaka tanımlama; yalnızca cansız çevre unsurları

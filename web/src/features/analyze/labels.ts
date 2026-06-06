@@ -27,10 +27,6 @@ export const LITTER_LABELS = new Set<string>([
   "spoon",
   "book",
   "handbag",
-  "backpack",
-  "suitcase",
-  "chair",
-  "couch",
 ]);
 
 const LABEL_TR: Record<string, string> = {

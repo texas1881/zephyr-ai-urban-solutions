@@ -1,5 +1,6 @@
 // Deterministic situation synthesis from vision detections.
 
+import { isPollutionLabel } from "@/features/analyze/detectionFilters";
 import {
   URBAN_DETECTION_QUERIES,
   type UrbanQuery,
@@ -31,11 +32,6 @@ const COCO_SITUATION: Record<string, SituationType> = {
   spoon: "cop_kirliligi",
   book: "cop_kirliligi",
   handbag: "cop_kirliligi",
-  backpack: "kaldirim_isgali",
-  suitcase: "kaldirim_isgali",
-  chair: "kaldirim_isgali",
-  couch: "kaldirim_isgali",
-  "potted plant": "yabani_ot",
 };
 
 function matchQuery(label: string): UrbanQuery | undefined {
@@ -96,7 +92,9 @@ export function filterSignificantDetections(
 ): DirectionDetections[] {
   return directions.map((d) => ({
     ...d,
-    detections: d.detections.filter((x) => x.score >= MIN_DETECTION_SCORE),
+    detections: d.detections.filter(
+      (x) => x.score >= MIN_DETECTION_SCORE && isPollutionLabel(x.label),
+    ),
   }));
 }
 

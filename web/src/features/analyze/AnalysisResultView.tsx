@@ -29,6 +29,7 @@ import {
   severityColor,
   type SituationType,
 } from "./situations";
+import { ImageLightbox } from "@/components/ImageLightbox";
 import { DensityGauge } from "./DensityGauge";
 
 const EMBED_KEY = process.env.NEXT_PUBLIC_MAPS_EMBED_KEY;
@@ -74,6 +75,10 @@ export function AnalysisResultView({
   onDispatch,
 }: Props) {
   const [pano, setPano] = useState(false);
+  const [lightbox, setLightbox] = useState<{
+    url: string;
+    label: string;
+  } | null>(null);
 
   const modelLabel =
     result.analysisModel === "hf-detection-llm"
@@ -95,6 +100,15 @@ export function AnalysisResultView({
     : null;
 
   return (
+    <>
+    {lightbox && (
+      <ImageLightbox
+        src={lightbox.url}
+        alt={`${result.address} — ${lightbox.label}`}
+        label={lightbox.label}
+        onClose={() => setLightbox(null)}
+      />
+    )}
     <div className="glass-strong scroll-mt-24 overflow-hidden rounded-2xl">
       <div className="overflow-hidden rounded-t-2xl">
         {panoUrl && (
@@ -141,16 +155,28 @@ export function AnalysisResultView({
         ) : (
           <div className="grid grid-cols-2 gap-px bg-white/10 sm:grid-cols-4">
             {result.directionImages.map((dir) => (
-              <div key={dir.heading} className="relative aspect-[4/3] bg-black">
+              <button
+                key={dir.heading}
+                type="button"
+                onClick={() =>
+                  setLightbox({ url: dir.url, label: dir.label })
+                }
+                className="group relative aspect-[4/3] cursor-zoom-in bg-black text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
+                aria-label={`${dir.label} yönünü büyüt`}
+              >
                 <img
                   src={dir.url}
                   alt={`${result.address} — ${dir.label}`}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03] group-hover:brightness-110"
                 />
+                <span className="absolute inset-0 bg-black/0 transition group-hover:bg-black/15" />
                 <span className="absolute left-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white backdrop-blur">
                   {dir.label}
                 </span>
-              </div>
+                <span className="pointer-events-none absolute bottom-2 right-2 rounded-md bg-black/50 px-1.5 py-0.5 text-[10px] text-white/80 opacity-0 backdrop-blur transition group-hover:opacity-100">
+                  Büyüt
+                </span>
+              </button>
             ))}
           </div>
         )}
@@ -348,5 +374,6 @@ export function AnalysisResultView({
         </div>
       </div>
     </div>
+    </>
   );
 }

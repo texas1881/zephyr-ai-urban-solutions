@@ -1,3 +1,4 @@
+import { isPollutionSituationText } from "@/features/analyze/detectionFilters";
 import type { DetectedSituation, SafetyRisk } from "@/types/api";
 import { severityRank } from "@/features/analyze/situations";
 import type { SituationAnalysis } from "@/services/situationAnalysis";
@@ -25,6 +26,8 @@ function passesConfidenceGate(
   const min = s.severity === "dusuk" ? minLow : minConf;
   if (s.confidence < min) return false;
   if (!s.description || s.description.length < 8) return false;
+  if (!isPollutionSituationText(s.description)) return false;
+  if (!isPollutionSituationText(s.location ?? "")) return false;
   return true;
 }
 
