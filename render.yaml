@@ -1,6 +1,6 @@
 # Render Blueprint — Zephyr backend (masterfabric-go + Postgres)
 # Dashboard: New > Blueprint > bu repo'yu bağla
-# Web URL: https://zephyr-backend.onrender.com (Vercel'de NEXT_PUBLIC_BACKEND_URL)
+# Web URL: https://zephyr-backend-2mtm.onrender.com (Vercel'de NEXT_PUBLIC_BACKEND_URL)
 
 databases:
   - name: zephyr-db
@@ -12,10 +12,13 @@ services:
   - type: web
     name: zephyr-backend
     runtime: docker
+    repo: https://github.com/texas1881/zephyr-ai-urban-solutions
+    branch: develop
     rootDir: backend
     dockerfilePath: deployments/Dockerfile
     dockerContext: .
     plan: free
+    region: frankfurt
     healthCheckPath: /health/live
     envVars:
       - key: JWT_SECRET

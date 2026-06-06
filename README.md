@@ -164,7 +164,7 @@ tanımlı değilse veriyi tarayıcıda (localStorage) biriktirir.
 1. [render.com](https://render.com) → **New** → **Blueprint**
 2. `texas1881/zephyr-ai-urban-solutions` reposunu bağla
 3. Kökteki `render.yaml` otomatik olarak **Postgres** + **zephyr-backend** web servisini oluşturur
-4. Deploy bitince URL: `https://zephyr-backend.onrender.com`
+4. Deploy bitince URL: `https://zephyr-backend-2mtm.onrender.com`
 5. İlk açılışta migration'lar otomatik çalışır; `GET /health/live` ile kontrol edin
 
 ### 2. Web → Vercel
@@ -174,7 +174,7 @@ tanımlı değilse veriyi tarayıcıda (localStorage) biriktirir.
 
 | Değişken | Açıklama |
 |----------|----------|
-| `NEXT_PUBLIC_BACKEND_URL` | `https://zephyr-backend.onrender.com` |
+| `NEXT_PUBLIC_BACKEND_URL` | `https://zephyr-backend-2mtm.onrender.com` |
 | `GEMINI_API_KEY` | Google AI Studio `AIza...` anahtarı |
 | `GOOGLE_STREET_VIEW_API_KEY` | Street View + Geocoding |
 | `HUGGINGFACE_API_TOKEN` | Yedek nesne tespiti |
