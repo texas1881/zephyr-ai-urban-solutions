@@ -1,20 +1,25 @@
 // Two-stage detection pipeline:
 //   1) HF zero-shot vision model (OWLv2) — image recognition
-//   2) HF text LLM — structured situation synthesis
+//   2) Rule-based synthesis (grounded) — LLM yalnızca özet için, durumlar kanıta dayalı
 
 import {
   detectUrbanObjects,
   type DirectionDetections,
   type DirectionImageInput,
 } from "@/services/huggingFaceService";
-import { synthesizeSituationsFromDetections } from "@/services/hfSynthesisService";
+import {
+  cleanSituationAnalysis,
+  filterSignificantDetections,
+  hasSignificantDetections,
+  synthesizeFromDetectionsRuleBased,
+} from "@/services/ruleBasedSynthesis";
 import type { SituationAnalysis } from "@/services/situationAnalysis";
 
 export type { DirectionImageInput };
 
 /**
- * Runs urban object detection on each direction image, then passes the
- * aggregated detections to a text-only language model for the final report.
+ * Runs urban object detection on each direction, then builds the situation
+ * report deterministically from vision evidence (no LLM hallucination).
  */
 export async function analyzeWithDetectionPipeline(
   address: string,
@@ -34,5 +39,10 @@ export async function analyzeWithDetectionPipeline(
     }),
   );
 
-  return synthesizeSituationsFromDetections(address, perDirection);
+  const filtered = filterSignificantDetections(perDirection);
+  if (!hasSignificantDetections(filtered)) {
+    return cleanSituationAnalysis(address);
+  }
+
+  return synthesizeFromDetectionsRuleBased(address, filtered);
 }

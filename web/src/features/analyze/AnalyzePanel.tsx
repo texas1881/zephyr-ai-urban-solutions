@@ -78,13 +78,13 @@ export function AnalyzePanel({ onAnalyzed, onDispatch }: Props) {
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="Adres veya mahalle girin (örn. Başakşehir)"
-            className="w-full rounded-lg border border-line bg-background/60 py-3 pl-10 pr-3 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-primary/50 focus:ring-1 focus:ring-primary/25"
+            className="w-full rounded-xl border border-line bg-black/30 py-3 pl-10 pr-3 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-white/40"
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="btn-primary flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm"
+          className="btn-primary flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm"
         >
           {loading ? (
             <>

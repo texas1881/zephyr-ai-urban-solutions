@@ -22,7 +22,7 @@ export default function Home() {
             <div className="max-w-2xl">
               <ZephyrLogo size={44} showWordmark className="mb-6" />
 
-              <p className="mb-3 inline-flex items-center gap-2 rounded-md border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-primary-soft">
+              <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-muted backdrop-blur">
                 Belediye Saha Denetim Platformu
               </p>
               <h1 className="text-balance text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl">
@@ -41,7 +41,7 @@ export default function Home() {
                   key={label}
                   className="glass flex flex-col gap-1.5 rounded-xl px-4 py-3"
                 >
-                  <Icon size={18} className="text-primary" strokeWidth={1.8} />
+                  <Icon size={18} className="text-foreground" strokeWidth={1.8} />
                   <span className="text-xs font-semibold text-foreground">
                     {label}
                   </span>
@@ -56,10 +56,10 @@ export default function Home() {
       </main>
 
       <footer className="flex flex-wrap items-center justify-center gap-1.5 border-t border-line py-6 text-center text-xs text-muted">
-        <ShieldCheck size={13} className="text-primary/70" />
+        <ShieldCheck size={13} className="text-muted" />
         <Link
           href="/kvkk"
-          className="underline-offset-2 hover:text-primary-soft hover:underline"
+          className="underline-offset-2 hover:text-foreground hover:underline"
         >
           KVKK Aydınlatma Metni
         </Link>

@@ -22,9 +22,9 @@ const STATUS_LABEL: Record<DispatchStatus, string> = {
 };
 
 const STATUS_COLOR: Record<DispatchStatus, string> = {
-  pending: "bg-amber-500/12 text-amber-200 ring-amber-400/25",
-  assigned: "bg-primary/15 text-primary-soft ring-primary/25",
-  resolved: "bg-emerald-500/12 text-emerald-200 ring-emerald-400/25",
+  pending: "bg-white/10 text-amber-300 ring-amber-400/30",
+  assigned: "bg-white/10 text-sky-300 ring-sky-400/30",
+  resolved: "bg-white/10 text-emerald-300 ring-emerald-400/30",
 };
 
 function Stat({ label, value }: { label: string; value: string | number }) {

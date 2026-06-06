@@ -1,12 +1,10 @@
 // Comprehensive natural-language field report generator.
-//
-// Detection is handled by the vision engine; THIS module only produces the
-// human-readable commentary/report. Gemini is used as the primary commentary
-// engine (per product decision), with a Hugging Face text model fallback and a
-// final local heuristic so the report never blocks the response.
+// When no situations were validated, uses deterministic local text only
+// (no LLM) to prevent hallucinated findings.
 
 import type { DetectedSituation, SafetyRisk } from "@/types/api";
 import { SITUATION_LABEL, SEVERITY_LABEL } from "@/features/analyze/situations";
+import { reportContradictsContext } from "@/services/reportValidation";
 
 const RISK_LABEL: Record<SafetyRisk, string> = {
   dusuk: "Düşük",
@@ -17,7 +15,6 @@ const RISK_LABEL: Record<SafetyRisk, string> = {
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const HF_ROUTER = "https://router.huggingface.co/v1/chat/completions";
 
-/** fetch with an abort timeout so a hanging provider can't stall the request. */
 async function fetchWithTimeout(
   url: string,
   init: RequestInit,
@@ -44,11 +41,9 @@ export type ReportContext = {
 
 export type GeneratedReport = {
   report: string;
-  /** Which engine produced the commentary. */
   engine: "gemini" | "hf" | "local";
 };
 
-/** Strips markdown emphasis/heading markers some models add despite the prompt. */
 function cleanText(text: string): string {
   return text
     .replace(/\*\*/g, "")
@@ -61,7 +56,7 @@ function cleanText(text: string): string {
 function buildPrompt(ctx: ReportContext): string {
   const sit =
     ctx.situations.length === 0
-      ? "Belirgin bir çevresel sorun tespit edilmedi."
+      ? "ONAYLANMIŞ TESPİT YOK — bölge temiz."
       : ctx.situations
           .map((s) => {
             const meta = [
@@ -79,23 +74,67 @@ function buildPrompt(ctx: ReportContext): string {
           })
           .join("\n");
 
-  return `Sen deneyimli bir belediye saha denetim uzmanısın. Aşağıdaki otomatik görüntü analizi (sokağın dört yönü tarandı) sonuçlarına dayanarak KAPSAMLI, profesyonel ve akıcı bir Türkçe saha raporu yaz.
+  const emptyRules =
+    ctx.situations.length === 0
+      ? `
+KRİTİK: Onaylanmış tespit YOK. Raporda çöp, atık, kirlilik, hasar, tarım veya herhangi bir sorun YAZMA.
+Yalnızca bölgenin temiz ve uygun olduğunu, rutin denetimin yeterli olduğunu belirt.`
+      : `
+KRİTİK: Yalnızca yukarıdaki onaylanmış tespitleri yaz. Listede olmayan sorun uydurma.`;
+
+  return `Sen deneyimli bir belediye saha denetim uzmanısın. Aşağıdaki DOĞRULANMIŞ analiz sonuçlarına dayanarak kısa, profesyonel Türkçe saha raporu yaz.
 
 Konum: ${ctx.address}
-Taranan yön sayısı: ${ctx.directionsScanned}
-Genel temizlik durumu: ${ctx.cleanliness}
-Kirlilik/yoğunluk skoru (0-100): ${ctx.densityScore}
-Güvenlik/aciliyet riski: ${RISK_LABEL[ctx.safetyRisk]}
+Taranan yön: ${ctx.directionsScanned}
+Temizlik: ${ctx.cleanliness}
+Yoğunluk skoru: ${ctx.densityScore}/100
+Risk: ${RISK_LABEL[ctx.safetyRisk]}
 Önerilen ekip: ${ctx.recommendedTeam}
-Tespit edilen durumlar:
+Onaylanmış tespitler:
 ${sit}
+${emptyRules}
 
-Rapor şu bölümleri içersin (her başlık tek satır, markdown/yıldız kullanma):
-1. Genel değerlendirme — bölgenin durumu, 2-3 cümle.
-2. Öne çıkan bulgular — varsa madde madde, hangi yönde ve ne kadar ciddi.
-3. Risk ve etki — güvenlik/halk sağlığı açısından kısa değerlendirme.
-4. Önerilen aksiyon ve önceliklendirme — hangi ekip, hangi sırayla, ne kadar acil.
-Toplam 160-230 kelime. Gözlemlere sadık kal, abartma. İnsan, araç gibi normal kent ögelerini sorun olarak yorumlama.`;
+Rapor bölümleri (markdown/yıldız kullanma):
+1. Genel değerlendirme — 2 cümle
+2. Öne çıkan bulgular — yalnızca onaylanmış tespit varsa
+3. Risk ve etki — 1-2 cümle
+4. Önerilen aksiyon — ekip ve öncelik
+Toplam 120-180 kelime. Gözlemlere %100 sadık kal.`;
+}
+
+function localReport(ctx: ReportContext): string {
+  if (ctx.situations.length === 0) {
+    return `Genel değerlendirme
+${ctx.address} bölgesinin dört yönü tarandı. Onaylanmış çevre sorunu veya atık birikimi tespit edilmedi; bölge genel olarak temiz ve düzenli görünüyor (yoğunluk skoru ${ctx.densityScore}/100).
+
+Öne çıkan bulgular
+Belirgin bulgu yok.
+
+Risk ve etki
+Güvenlik ve halk sağlığı açısından düşük risk; rutin denetim yeterlidir.
+
+Önerilen aksiyon
+Acil ekip yönlendirmesi gerekmiyor. Periyodik saha kontrolü önerilir.`;
+  }
+
+  const items = ctx.situations
+    .map(
+      (s) =>
+        `${SITUATION_LABEL[s.type]} — ${SEVERITY_LABEL[s.severity]} önem, ${s.direction || "yön belirtilmedi"} yönünde`,
+    )
+    .join("\n");
+
+  return `Genel değerlendirme
+${ctx.address} bölgesinde dört yönlü analiz sonucunda ${ctx.situations.length} onaylanmış durum tespit edildi. Genel temizlik: ${ctx.cleanliness}, yoğunluk skoru ${ctx.densityScore}/100.
+
+Öne çıkan bulgular
+${items}
+
+Risk ve etki
+Güvenlik/aciliyet riski: ${RISK_LABEL[ctx.safetyRisk]}.
+
+Önerilen aksiyon
+${ctx.recommendedTeam} bölgeye yönlendirilmeli; yüksek önemli bulgular önceliklendirilmelidir.`;
 }
 
 async function tryGemini(prompt: string): Promise<string | null> {
@@ -116,7 +155,7 @@ async function tryGemini(prompt: string): Promise<string | null> {
         headers,
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 900 },
+          generationConfig: { temperature: 0.15, maxOutputTokens: 700 },
         }),
       },
       8000,
@@ -150,8 +189,8 @@ async function tryHF(prompt: string): Promise<string | null> {
         body: JSON.stringify({
           model,
           messages: [{ role: "user", content: prompt }],
-          temperature: 0.4,
-          max_tokens: 900,
+          temperature: 0.1,
+          max_tokens: 700,
         }),
       },
       20000,
@@ -165,32 +204,33 @@ async function tryHF(prompt: string): Promise<string | null> {
   }
 }
 
-/** Local heuristic report used when no AI engine is reachable. */
-function localReport(ctx: ReportContext): string {
-  if (ctx.situations.length === 0) {
-    return `${ctx.address} bölgesinin dört yönü tarandı. Belirgin bir çevresel sorun ya da atık birikimi tespit edilmedi; bölge genel olarak temiz ve düzenli görünüyor (kirlilik skoru ${ctx.densityScore}/100). Şu an için ekip yönlendirmesi gerekmiyor; rutin denetim yeterlidir.`;
+function acceptOrLocal(
+  raw: string | null,
+  ctx: ReportContext,
+  engine: GeneratedReport["engine"],
+): GeneratedReport {
+  if (!raw) return { report: localReport(ctx), engine: "local" };
+  const cleaned = cleanText(raw);
+  if (reportContradictsContext(cleaned, ctx)) {
+    return { report: localReport(ctx), engine: "local" };
   }
-  const items = ctx.situations
-    .map((s) => `${SITUATION_LABEL[s.type]} (${SEVERITY_LABEL[s.severity]})`)
-    .join(", ");
-  return `${ctx.address} bölgesinde yapılan dört yönlü analizde ${ctx.situations.length} durum tespit edildi: ${items}. Genel temizlik durumu "${ctx.cleanliness}", kirlilik skoru ${ctx.densityScore}/100, güvenlik/aciliyet riski ${RISK_LABEL[ctx.safetyRisk]}. Önerilen aksiyon: ${ctx.recommendedTeam} bölgeye yönlendirilmeli; yüksek önem dereceli bulgular öncelikli ele alınmalıdır.`;
+  return { report: cleaned, engine };
 }
 
-/**
- * Produces a comprehensive Turkish field report from the analysis context.
- * Tries Gemini (commentary engine) first, then a Hugging Face text model, and
- * finally a deterministic local summary. Never throws.
- */
 export async function generateReport(
   ctx: ReportContext,
 ): Promise<GeneratedReport> {
-  const prompt = buildPrompt(ctx);
+  // Temiz bölge: LLM kullanma — halüsinasyon riski sıfır
+  if (ctx.situations.length === 0) {
+    return { report: localReport(ctx), engine: "local" };
+  }
 
+  const prompt = buildPrompt(ctx);
   const gemini = await tryGemini(prompt);
-  if (gemini) return { report: cleanText(gemini), engine: "gemini" };
+  if (gemini) return acceptOrLocal(gemini, ctx, "gemini");
 
   const hf = await tryHF(prompt);
-  if (hf) return { report: cleanText(hf), engine: "hf" };
+  if (hf) return acceptOrLocal(hf, ctx, "hf");
 
   return { report: localReport(ctx), engine: "local" };
 }

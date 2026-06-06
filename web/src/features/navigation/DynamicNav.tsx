@@ -17,14 +17,13 @@ type Props = {
 
 const SPRING = { type: "spring" as const, stiffness: 380, damping: 34 };
 
-/** Kurumsal üst sekme çubuğu — sade, etiketler her zaman görünür. */
 export function DynamicNav({ items, active, onChange }: Props) {
   return (
     <nav
-      className="pointer-events-none fixed left-1/2 top-0 z-50 w-full max-w-3xl -translate-x-1/2 px-4 pt-4"
+      className="pointer-events-none fixed left-1/2 top-4 z-50 w-full max-w-3xl -translate-x-1/2 px-4"
       aria-label="Ana menü"
     >
-      <div className="nav-shell pointer-events-auto rounded-xl p-1">
+      <div className="nav-shell pointer-events-auto rounded-2xl p-1">
         <div className="relative flex items-center">
           {items.map((item) => {
             const isActive = item.id === active;
@@ -36,14 +35,14 @@ export function DynamicNav({ items, active, onChange }: Props) {
                 type="button"
                 onClick={() => onChange(item.id)}
                 aria-current={isActive ? "page" : undefined}
-                className={`relative flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/50 ${
-                  isActive ? "text-primary-soft" : "text-muted hover:text-foreground"
+                className={`relative flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/40 ${
+                  isActive ? "text-black" : "text-muted hover:text-foreground"
                 }`}
               >
                 {isActive && (
                   <motion.span
                     layoutId="nav-active"
-                    className="absolute inset-0 rounded-lg bg-primary/15 ring-1 ring-inset ring-primary/25"
+                    className="absolute inset-0 rounded-xl bg-white shadow-[0_2px_12px_rgba(255,255,255,0.25)]"
                     transition={SPRING}
                   />
                 )}

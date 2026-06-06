@@ -73,12 +73,12 @@ export function severityRank(s: Severity): number {
   return SEVERITY_RANK[s] ?? 0;
 }
 
-/** Tailwind classes for a severity badge (corporate palette). */
+/** Tailwind classes for a severity badge (dark glass friendly). */
 export const severityColor: Record<Severity, string> = {
-  dusuk: "bg-slate-500/15 text-slate-300 ring-slate-400/25",
-  orta: "bg-amber-500/12 text-amber-200 ring-amber-400/25",
-  yuksek: "bg-orange-500/12 text-orange-200 ring-orange-400/25",
-  kritik: "bg-red-500/12 text-red-200 ring-red-400/25",
+  dusuk: "bg-white/10 text-emerald-300 ring-emerald-400/30",
+  orta: "bg-white/10 text-amber-300 ring-amber-400/30",
+  yuksek: "bg-white/10 text-orange-300 ring-orange-400/30",
+  kritik: "bg-white/10 text-red-300 ring-red-400/30",
 };
 
 /**
