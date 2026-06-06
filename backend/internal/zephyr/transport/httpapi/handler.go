@@ -23,6 +23,8 @@ func (h *Handler) Routes() chi.Router {
 	r.Post("/records", h.createRecord)
 	r.Get("/records", h.listRecords)
 	r.Get("/records/stats", h.recordStats)
+	r.Delete("/records", h.clearRecords)
+	r.Delete("/records/{id}", h.deleteRecord)
 	return r
 }
 
@@ -52,6 +54,27 @@ func (h *Handler) listRecords(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	writeSuccess(w, http.StatusOK, records)
+}
+
+func (h *Handler) deleteRecord(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "id zorunludur")
+		return
+	}
+	if err := h.repo.Delete(id); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeSuccess(w, http.StatusOK, map[string]string{"id": id})
+}
+
+func (h *Handler) clearRecords(w http.ResponseWriter, _ *http.Request) {
+	if err := h.repo.Clear(); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeSuccess(w, http.StatusOK, map[string]bool{"cleared": true})
 }
 
 func (h *Handler) recordStats(w http.ResponseWriter, _ *http.Request) {

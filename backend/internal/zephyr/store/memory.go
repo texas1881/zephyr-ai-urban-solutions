@@ -48,6 +48,26 @@ func (m *Memory) List() ([]domain.Record, error) {
 	return out, nil
 }
 
+func (m *Memory) Delete(id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for i, r := range m.records {
+		if r.ID == id {
+			m.records = append(m.records[:i], m.records[i+1:]...)
+			return nil
+		}
+	}
+	return nil
+}
+
+func (m *Memory) Clear() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.records = m.records[:0]
+	return nil
+}
+
 func (m *Memory) Stats() (domain.Stats, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

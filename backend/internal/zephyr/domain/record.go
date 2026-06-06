@@ -38,4 +38,6 @@ type Repository interface {
 	Save(r Record) (Record, error)
 	List() ([]Record, error)
 	Stats() (Stats, error)
+	Delete(id string) error
+	Clear() error
 }
