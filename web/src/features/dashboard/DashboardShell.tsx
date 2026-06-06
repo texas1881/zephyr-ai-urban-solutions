@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { mockDetections } from "@/features/detections/mockData";
+import type { DetectionPoint } from "@/types/api";
 import { DetectionCard } from "@/features/detections/DetectionCard";
 import { SummaryBar } from "@/features/detections/SummaryBar";
 import { AnalyzePanel } from "@/features/analyze/AnalyzePanel";
@@ -24,9 +24,21 @@ export function DashboardShell() {
     useRecords();
   const { user, loading, backendEnabled, logout } = useAuth();
 
-  const detections = [...mockDetections].sort(
-    (a, b) => b.densityScore - a.densityScore,
-  );
+  // Priority board is driven by the REAL accumulated analysis records
+  // (most polluted first), not static demo data.
+  const detections: DetectionPoint[] = records
+    .map((r) => ({
+      id: r.id,
+      location: r.address,
+      lat: r.lat,
+      lng: r.lng,
+      litterCount: r.litterCount,
+      densityScore: r.densityScore,
+      priority: r.priority,
+      imageRef: r.streetViewUrl,
+      capturedAt: r.createdAt,
+    }))
+    .sort((a, b) => b.densityScore - a.densityScore);
 
   // Auth gating: only enforced when a backend URL is configured.
   if (backendEnabled) {
@@ -90,21 +102,42 @@ export function DashboardShell() {
         {view === "pano" && (
           <ModuleCard
             title="Temizlik Öncelik Panosu"
-            subtitle="Çöp yoğunluğuna göre sıralı bölgeler"
+            subtitle="Yapılan analizler, kirlilik yoğunluğuna göre sıralı"
             badge={`${detections.length} bölge`}
           >
-            <div className="mb-5">
-              <SummaryBar detections={detections} />
-            </div>
-            <ul className="flex flex-col gap-3">
-              {detections.map((detection, index) => (
-                <DetectionCard
-                  key={detection.id}
-                  detection={detection}
-                  rank={index + 1}
-                />
-              ))}
-            </ul>
+            {detections.length === 0 ? (
+              <div className="glass flex flex-col items-center gap-2 rounded-2xl px-6 py-12 text-center">
+                <span className="text-2xl">🗺️</span>
+                <p className="text-sm font-medium text-foreground">
+                  Henüz analiz yok
+                </p>
+                <p className="max-w-sm text-xs text-muted">
+                  Analiz sekmesinden bir adres tarayın; sonuçlar burada kirlilik
+                  önceliğine göre otomatik sıralanır.
+                </p>
+                <button
+                  onClick={() => setView("analiz")}
+                  className="mt-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-primary-soft"
+                >
+                  Analize başla
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="mb-5">
+                  <SummaryBar detections={detections} />
+                </div>
+                <ul className="flex flex-col gap-3">
+                  {detections.map((detection, index) => (
+                    <DetectionCard
+                      key={detection.id}
+                      detection={detection}
+                      rank={index + 1}
+                    />
+                  ))}
+                </ul>
+              </>
+            )}
           </ModuleCard>
         )}
       </div>

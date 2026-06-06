@@ -39,30 +39,30 @@ Zephyr, kamusal sokak görüntülerini uygulanabilir temizlik önceliklerine dö
 ## Mimari
 
 ```
-                 ┌─────────────────────┐
-                 │  Google Street View  │
-                 │        API           │
-                 └──────────┬──────────┘
-                            │ görüntüler
-                            ▼
-                 ┌─────────────────────┐
-                 │   Anonimleştirme     │  yüz & plaka bulanıklaştırma (KVKK)
-                 └──────────┬──────────┘
-                            ▼
-                 ┌─────────────────────┐
-                 │  HF Inference API    │  çöp / kirlilik tespiti
-                 │  (nesne tespiti)     │  (eğitim yok, hazır model)
-                 └──────────┬──────────┘
-                            ▼
+        ┌──────────────────────┐
+        │  Google Street View   │  4 yön (ön/arka/sağ/sol)
+        │  + Geocoding          │  yüz/plaka kaynağında bulanık (Google)
+        └──────────┬───────────┘
+                   ▼
+        ┌──────────────────────┐
+        │  HF çok-kipli model    │  durum tespiti (çöp/yol hasarı/...)
+        │  (Qwen3-VL, eğitim yok)│  → JSON: durumlar + önem + güven
+        └──────────┬───────────┘
+                   ▼
+        ┌──────────────────────┐
+        │  Gemini (yorum)        │  kapsamlı saha raporu
+        │  → HF → yerel fallback │
+        └──────────┬───────────┘
+                   ▼
         ┌──────────────────────────────────────┐
-        │  Go Backend (masterfabric-go)         │
-        │  yoğunluk skoru + öncelik sıralaması   │
-        └───────────┬───────────────┬──────────┘
-                    ▼               ▼
-        ┌────────────────┐  ┌────────────────┐
-        │  Next.js Web    │  │   Expo Mobil   │
-        │  (panel)        │  │   (saha uyg.)  │
-        └────────────────┘  └────────────────┘
+        │  Go Backend (masterfabric-go + IAM)    │  JWT + kayıt CRUD +
+        │  ekip atama + durum + istatistik       │  öncelik sıralaması
+        └──────────────────┬───────────────────┘
+                           ▼
+                 ┌────────────────┐
+                 │  Next.js Web    │  analiz / kayıtlar / öncelik panosu
+                 │  (panel + 360°) │  + JWT login
+                 └────────────────┘
 ```
 
 Tüm HTTP API'leri tutarlı bir REST yanıt zarfı (envelope) kullanır:
@@ -77,23 +77,55 @@ Tüm HTTP API'leri tutarlı bir REST yanıt zarfı (envelope) kullanır:
 
 ## AI ve Cursor Kullanımı
 
-Proje tamamen **Cursor IDE** içinde, agentic (kurallı ajan) bir akışla geliştirilmektedir.
+Proje **baştan sona Cursor IDE** içinde, agentic (kurallı ajan) bir akışla geliştirildi. Hem ürünün içindeki AI hem de geliştirme sürecindeki AI şeffaf biçimde belgelenmiştir.
 
-- **Cursor Ruleset** — Proje genelindeki kurallar [`.cursor/rules/hackathon-rules.mdc`](.cursor/rules/hackathon-rules.mdc) dosyasında yer alır ve teknoloji yığınımızı, feature-first mimariyi, REST kurallarını, KVKK kurallarını ve commit disiplinini zorunlu kılar. Kurallar `alwaysApply: true` olduğundan her ajan aksiyonu hackathon kısıtlarına otomatik uyar.
-- **Prompt Kullanımı** — Cursor ajanı; özellikleri iskeletlemek, tipli servisler üretmek ve README'yi kod tabanıyla senkron tutmak için kullanılır.
-- **Hugging Face Inference API** — Kendi modelimizi eğitmek yerine, barındırılan önceden eğitilmiş bir nesne tespiti modeli (`facebook/detr-resnet-50`; COCO sınıfları çöp temsilcisi olarak kullanılır) çağrılır. `HF_DETECTION_MODEL` ortam değişkeniyle TACO ile fine-tune edilmiş bir çöp modeline geçilebilir. Entegrasyon [`web/src/services/huggingFaceService.ts`](web/src/services/huggingFaceService.ts) içindedir ve `GET /api/analyze?lat=&lng=` ile sunulur.
+### Üründeki AI (model eğitimi yok — hazır modeller API ile)
 
-> _Bu bölüm, AI akışı geliştikçe (Cursor CLI / SDK otomasyonları dâhil) güncel tutulur._
+| Görev | Servis / Model | Dosya |
+|-------|----------------|-------|
+| Görsel durum tespiti (birincil) | Hugging Face `Qwen/Qwen3-VL-8B-Instruct` (çok-kipli) | [`web/src/services/hfVisionService.ts`](web/src/services/hfVisionService.ts) |
+| Kapsamlı saha raporu (yorum) | Gemini → HF metin → yerel | [`web/src/services/reportService.ts`](web/src/services/reportService.ts) |
+| Ortak prompt + JSON ayrıştırma | — | [`web/src/services/situationAnalysis.ts`](web/src/services/situationAnalysis.ts) |
+| Yedek görü | Google Vision → COCO (`facebook/detr-resnet-50`) | [`web/src/services/visionService.ts`](web/src/services/visionService.ts), [`huggingFaceService.ts`](web/src/services/huggingFaceService.ts) |
+
+### Kullanılan Prompt Teknikleri
+
+- **Yapılandırılmış çıktı (structured output)** — Modelden katı bir JSON şeması (densityScore, cleanliness, situations[]) istenir; yanıt lenient bir parser ile güvenle ayrıştırılır.
+- **Negatif kısıtlama (guardrail prompting)** — Prompt, insan/araç/yangın musluğu gibi normal kent ögelerini sorun saymayı **açıkça yasaklar**; bu, yanlış pozitifleri (kalabalık ≠ kirli) ciddi şekilde azaltır.
+- **Taksonomi sabitleme** — 6 sorun tipi + 4 önem derecesi enum olarak dayatılır, böylece çıktı ekip-yönlendirme mantığıyla bire bir eşleşir.
+- **Düşük sıcaklık (temperature 0.2)** — tekrarlanabilir, kararlı tespit için.
+- **Görev ayrıştırma** — tespit ve yorum farklı çağrılara ayrıldı; her biri bağımsız fallback zincirine sahip (dayanıklılık).
+
+### Cursor Özellikleri ve Ruleset
+
+- **Cursor Ruleset** — [`.cursor/rules/`](.cursor/rules/) altındaki kurallar teknoloji yığınını, feature-first mimariyi, REST zarfını, KVKK kurallarını ve commit disiplinini zorunlu kılar (`alwaysApply`).
+- **Agentic akış** — Özellik iskeletleme, tipli servis üretimi, refactor ve README senkronu Cursor ajanı ile yapıldı.
+- **TODO/plan yönetimi** — Çok adımlı işler ajan içi yapılandırılmış görev listesiyle yürütüldü.
+
+### Cursor CLI / Harici CLI Otomasyonu (ekstra puan)
+
+Geliştirme ve deploy otomasyonu, **Cursor ajanının terminal entegrasyonu üzerinden** yürütülen CLI'larla yapıldı:
+
+- **`gcloud`** — Google Cloud API'lerini (Generative Language, Maps Embed) etkinleştirme ve API anahtarı kısıtlamalarını düzeltme ajan tarafından otomatikleştirildi.
+- **`vercel`** — Production env değişkenleri eklenip `vercel --prod` ile deploy ajan üzerinden tetiklendi.
+- **`render`** — Backend blueprint/servis yönetimi.
+- **`git`** — Sürekli, anlamlı commit'ler ajan üzerinden atıldı (aşağıdaki commit disiplini bölümüne bakın).
+
+### Sürekli Entegrasyon (Commit Disiplini)
+
+Kod tek seferde değil, **anlamlı commit'lerle aşama aşama** GitHub'a işlendi (`git log` ile süreç izlenebilir). Örnek commit'ler: siyah-beyaz cam tasarım, masterfabric kayıt alanları, IAM login/session, HF vision + Gemini yorum motoru.
 
 ## KVKK ve Veri Güvenliği
 
-Zephyr, gizliliği önceleyerek geliştirilmiştir:
+Zephyr, gizliliği önceleyerek (privacy-first) geliştirilmiştir. Uygulama içi
+ayrıntılı metin: **[`/kvkk`](web/src/app/kvkk/page.tsx)**.
 
-- **Amaç sınırlaması** — Modeller yalnızca cansız kentsel objeleri (çöp, atık, hasarlı yol vb.) hedef alır.
-- **Kişisel veri yok** — Kimlik tespiti, yüz tanıma, plaka okuma veya profilleme yapılmaz.
-- **Zorunlu anonimleştirme** — İnsan yüzleri ve araç plakaları model işlemeden önce geri döndürülemez biçimde bulanıklaştırılır.
-- **Veri güvenliği** — Ham görüntüler asla açık repolara veya şifrelenmemiş depolamaya yüklenmez.
-- **Silme taahhüdü** — Hackathon sonunda tüm ham görüntüler kalıcı olarak silinir ve bu durum yazılı olarak belgelenir.
+- **Amaç sınırlaması** — Model promptu yalnızca cansız kentsel objeleri (çöp, atık, dolu çöp kutusu, hasarlı yol, moloz, grafiti) hedef alır; bu, sistemde **enum olarak dayatılır**.
+- **Kişisel veri yok** — Kimlik tespiti, yüz tanıma, plaka okuma veya profilleme **yapılmaz**. İnsan/araç yalnızca "ortam göstergesi" olarak işaretlenir, **kirlilik skoruna katılmaz**.
+- **Kaynakta anonimleştirme** — Google Street View görüntülerinde yüzler ve plakalar Google tarafından kaynağında geri döndürülemez biçimde bulanıklaştırılır; kendi modelimizi eğitmediğimiz için ek ham veri seti tutulmaz.
+- **Veri minimizasyonu** — Ham görüntüler kalıcı depolanmaz; yalnızca analiz sonuçları (skor, durumlar) saklanır. API anahtarları yalnızca sunucu tarafındadır, açık repoya yüklenmez.
+- **Güvenli erişim** — Backend bağlıyken erişim JWT oturum ile korunur.
+- **Silme taahhüdü** — Hackathon sonunda tüm geçici görüntü önbellekleri kalıcı olarak silinir; bu durum belgelenir.
 
 ## Depo Yapısı
 

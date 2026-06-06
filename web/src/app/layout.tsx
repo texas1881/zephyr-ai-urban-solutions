@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Zephyr — Kentsel Temizlik Analizi",
+  title: "Zephyr — Kentsel Saha Yönetim Sistemi",
   description:
-    "Gemini görsel yapay zekâ ile kentsel temizlik analizi: çöp/kirlilik tespiti ve temizlik öncelik panosu.",
+    "Yapay zekâ destekli kentsel saha analizi: çöp/kirlilik ve altyapı tespiti, ekip yönlendirme ve temizlik öncelik panosu.",
 };
 
 export default function RootLayout({
