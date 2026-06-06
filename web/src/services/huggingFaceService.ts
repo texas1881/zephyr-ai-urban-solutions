@@ -82,10 +82,16 @@ export async function detectObjects(
  * environmental clutter (total detected objects), so the score stays
  * meaningful even when a generic COCO model is used on street imagery.
  */
-export function summarizeDetections(detections: HFDetection[]): DetectionSummary {
+export function summarizeDetections(
+  detections: Array<{ label: string; score: number }>,
+): DetectionSummary {
   const litterCount = detections.filter((d) => LITTER_LABELS.has(d.label)).length;
   const totalObjects = detections.length;
   const weighted = litterCount * 3 + totalObjects;
   const densityScore = Math.min(100, Math.round((weighted / 18) * 100));
-  return { litterCount, densityScore, rawDetections: detections };
+  return {
+    litterCount,
+    densityScore,
+    rawDetections: detections as HFDetection[],
+  };
 }

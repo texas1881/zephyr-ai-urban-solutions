@@ -46,15 +46,34 @@ export function AnalysisResultView({ result }: Props) {
             <DensityGauge score={result.densityScore} />
             <div className="space-y-1 text-sm">
               <p className="text-foreground">
+                Temizlik durumu:{" "}
+                <span className="font-medium">{result.cleanliness}</span>
+              </p>
+              <p className="text-foreground">
                 <span className="font-serif text-2xl font-semibold">
                   {result.litterCount}
                 </span>{" "}
                 çöp/kirlilik objesi
               </p>
               <p className="text-muted">
-                {result.objects.length} nesne tespit edildi
+                {result.objects.length} nesne · {result.directionsScanned} yön
+                tarandı (ön/arka/sağ/sol)
               </p>
             </div>
+          </div>
+
+          <div className="rounded-xl border border-line bg-background p-3">
+            <div className="mb-1 flex items-center gap-2">
+              <span className="text-xs font-medium text-primary">
+                Değerlendirme
+              </span>
+              <span className="rounded-full border border-line px-1.5 py-0.5 text-[10px] text-muted">
+                {result.aiAssessment ? "Gemini AI" : "otomatik"}
+              </span>
+            </div>
+            <p className="text-sm leading-6 text-foreground">
+              {result.assessment}
+            </p>
           </div>
 
           {result.objects.length > 0 && (

@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { AnalysisResult, ApiResponse } from "@/types/api";
+import type { AnalysisResult, ApiResponse, DetectedObject } from "@/types/api";
 import { geocodeAddress } from "@/services/geocodeService";
-import { buildStreetViewUrl } from "@/services/streetViewService";
+import {
+  buildStreetViewUrl,
+  hasStreetViewImagery,
+  SCAN_DIRECTIONS,
+} from "@/services/streetViewService";
 import {
   detectObjects,
   summarizeDetections,
 } from "@/services/huggingFaceService";
+import { generateAssessment } from "@/services/geminiService";
 import { scoreToPriority } from "@/features/detections/priority";
 
 /**
- * Analyzes a location for litter density.
- * Accepts either a free-text address or explicit coordinates:
+ * Analyzes a location for litter density by scanning four Street View
+ * directions (front/right/back/left), then summarizing detections and
+ * producing a Gemini assessment.
  *   GET /api/analyze?address=Başakşehir
  *   GET /api/analyze?lat=41.09&lng=28.80
  */
@@ -24,6 +30,13 @@ export async function GET(req: NextRequest) {
   try {
     if (address) {
       const geo = await geocodeAddress(address);
+      if (!geo) {
+        const error: ApiResponse<never> = {
+          success: false,
+          message: "Adres bulunamadı. Lütfen geçerli bir adres girin.",
+        };
+        return NextResponse.json(error, { status: 404 });
+      }
       lat = geo.lat;
       lng = geo.lng;
       formattedAddress = geo.formattedAddress;
@@ -37,15 +50,35 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(error, { status: 400 });
     }
 
-    const imageUrl = buildStreetViewUrl({ lat, lng });
-    const imageRes = await fetch(imageUrl);
-    if (!imageRes.ok) {
-      throw new Error(`Street View görüntüsü alınamadı (${imageRes.status})`);
+    const hasImagery = await hasStreetViewImagery(lat, lng);
+    if (!hasImagery) {
+      const error: ApiResponse<never> = {
+        success: false,
+        message: "Bu konumda sokak görüntüsü bulunmuyor.",
+      };
+      return NextResponse.json(error, { status: 404 });
     }
-    const imageBytes = await imageRes.arrayBuffer();
 
-    const detections = await detectObjects(imageBytes);
-    const summary = summarizeDetections(detections);
+    // Scan all four directions in parallel.
+    const perDirection = await Promise.all(
+      SCAN_DIRECTIONS.map(async ({ heading }) => {
+        const imageUrl = buildStreetViewUrl({ lat, lng, heading });
+        const imageRes = await fetch(imageUrl);
+        if (!imageRes.ok) return [] as DetectedObject[];
+        const bytes = await imageRes.arrayBuffer();
+        const detections = await detectObjects(bytes);
+        return detections.map((d) => ({ label: d.label, score: d.score }));
+      }),
+    );
+
+    const allObjects: DetectedObject[] = perDirection.flat();
+    const summary = summarizeDetections(allObjects);
+
+    const assessment = await generateAssessment(
+      formattedAddress,
+      summary.densityScore,
+      allObjects,
+    );
 
     const result: AnalysisResult = {
       address: formattedAddress || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
@@ -55,9 +88,13 @@ export async function GET(req: NextRequest) {
       densityScore: summary.densityScore,
       priority: scoreToPriority(summary.densityScore),
       streetViewUrl: `/api/streetview?lat=${lat}&lng=${lng}`,
-      objects: summary.rawDetections
-        .slice(0, 12)
-        .map((d) => ({ label: d.label, score: d.score })),
+      objects: allObjects
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 14),
+      directionsScanned: SCAN_DIRECTIONS.length,
+      cleanliness: assessment.cleanliness,
+      assessment: assessment.comment,
+      aiAssessment: assessment.aiGenerated,
     };
 
     const body: ApiResponse<AnalysisResult> = { success: true, data: result };
