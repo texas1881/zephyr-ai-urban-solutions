@@ -7,22 +7,11 @@
  * TACO-finetuned litter model via HF_DETECTION_MODEL.
  */
 
+import { LITTER_LABELS } from "@/features/analyze/labels";
+
 const HF_ROUTER = "https://router.huggingface.co/hf-inference/models";
 
 const DEFAULT_MODEL = "facebook/detr-resnet-50";
-
-/** COCO labels that act as litter / waste proxies for the demo. */
-export const LITTER_LABELS = new Set<string>([
-  "bottle",
-  "cup",
-  "wine glass",
-  "bowl",
-  "can",
-  "banana",
-  "apple",
-  "orange",
-  "sandwich",
-]);
 
 export type HFDetection = {
   label: string;
@@ -75,20 +64,19 @@ export async function detectObjects(
 }
 
 /**
- * Converts raw detections into a litter count and a 0-100 density score.
+ * Converts raw detections into a litter count and a 0-100 pollution score.
  *
- * `litterCount` counts litter-proxy objects (bottle, cup, ...). The density
- * score blends litter-proxy objects (weighted heavily) with the overall
- * environmental clutter (total detected objects), so the score stays
- * meaningful even when a generic COCO model is used on street imagery.
+ * The score is based ONLY on litter / waste proxies (bottle, cup, can, food
+ * waste, ...). People, vehicles and street furniture are deliberately ignored
+ * so that a busy-but-clean place (e.g. a crowded square) is not flagged as
+ * polluted just because many people or cars were detected.
  */
 export function summarizeDetections(
   detections: Array<{ label: string; score: number }>,
 ): DetectionSummary {
   const litterCount = detections.filter((d) => LITTER_LABELS.has(d.label)).length;
-  const totalObjects = detections.length;
-  const weighted = litterCount * 3 + totalObjects;
-  const densityScore = Math.min(100, Math.round((weighted / 18) * 100));
+  // ~7 litter objects across the 4 scanned directions ≈ fully polluted.
+  const densityScore = Math.min(100, Math.round((litterCount / 7) * 100));
   return {
     litterCount,
     densityScore,

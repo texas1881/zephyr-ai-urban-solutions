@@ -1,13 +1,33 @@
 /* eslint-disable @next/next/no-img-element */
-import type { AnalysisResult } from "@/types/api";
+import type { AnalysisResult, DetectedObject } from "@/types/api";
 import { priorityColor, priorityLabel } from "@/features/detections/priority";
+import { isLitter, labelTr } from "./labels";
 import { DensityGauge } from "./DensityGauge";
 
 type Props = {
   result: AnalysisResult;
 };
 
+type Grouped = { label: string; count: number };
+
+function groupObjects(
+  objects: DetectedObject[],
+  litter: boolean,
+): Grouped[] {
+  const counts = new Map<string, number>();
+  for (const o of objects) {
+    if (isLitter(o.label) !== litter) continue;
+    counts.set(o.label, (counts.get(o.label) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
 export function AnalysisResultView({ result }: Props) {
+  const litterGroups = groupObjects(result.objects, true);
+  const contextGroups = groupObjects(result.objects, false);
+
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
       <div className="grid gap-0">
@@ -76,16 +96,39 @@ export function AnalysisResultView({ result }: Props) {
             </p>
           </div>
 
-          {result.objects.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {result.objects.map((obj, i) => (
-                <span
-                  key={`${obj.label}-${i}`}
-                  className="rounded-md border border-line bg-background px-2 py-0.5 text-xs text-muted"
-                >
-                  {obj.label} · {(obj.score * 100).toFixed(0)}%
-                </span>
-              ))}
+          {litterGroups.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-foreground">
+                Tespit edilen atık
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {litterGroups.map((g) => (
+                  <span
+                    key={g.label}
+                    className="rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-200"
+                  >
+                    {labelTr(g.label)} ×{g.count}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {contextGroups.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-muted">
+                Ortam (kirlilik göstergesi değildir)
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {contextGroups.map((g) => (
+                  <span
+                    key={g.label}
+                    className="rounded-md border border-line bg-background px-2 py-0.5 text-xs text-muted"
+                  >
+                    {labelTr(g.label)} ×{g.count}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>
