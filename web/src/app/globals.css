@@ -1,46 +1,80 @@
 @import "tailwindcss";
 
 :root {
-  /* Klasik / sıcak palet */
-  --background: #f6f1e7;
-  --surface: #fffdf8;
-  --foreground: #2b2620;
-  --muted: #6f675a;
-  --border: #e4dccb;
-  --primary: #1f4d3a;
-  --primary-soft: #2e6b51;
-  --accent: #b8893b;
+  /* Siyah-beyaz, Apple cam (glassmorphism) paleti */
+  --background: #050506;
+  --surface: rgba(255, 255, 255, 0.055);
+  --surface-strong: rgba(255, 255, 255, 0.1);
+  --foreground: #f5f5f7;
+  --muted: #98989f;
+  --border: rgba(255, 255, 255, 0.12);
+  --primary: #ffffff;
+  --primary-soft: #e6e6ea;
+  --accent: #c7c7cc;
+  --danger: #ff453a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-line: var(--border);
   --color-primary: var(--primary);
   --color-primary-soft: var(--primary-soft);
   --color-accent: var(--accent);
+  --color-danger: var(--danger);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-serif: var(--font-serif);
+  --font-serif: var(--font-geist-sans);
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
   background-image:
-    radial-gradient(circle at 1px 1px, rgba(43, 38, 32, 0.04) 1px, transparent 0);
-  background-size: 22px 22px;
+    radial-gradient(60rem 60rem at 50% -10%, rgba(255, 255, 255, 0.07), transparent 60%),
+    radial-gradient(40rem 40rem at 100% 0%, rgba(255, 255, 255, 0.04), transparent 55%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Apple-style frosted glass surface */
+.glass {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+}
+
+.glass-strong {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(26px) saturate(160%);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
   }
 }

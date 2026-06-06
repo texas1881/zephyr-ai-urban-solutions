@@ -43,10 +43,10 @@ export function AnalyzePanel({ onAnalyzed }: Props) {
           e.preventDefault();
           analyze(address);
         }}
-        className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-5 shadow-sm sm:flex-row sm:items-center"
+        className="glass-strong flex flex-col gap-3 rounded-2xl p-3 sm:flex-row sm:items-center"
       >
         <div className="relative flex-1">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">
             ⌖
           </span>
           <input
@@ -54,13 +54,13 @@ export function AnalyzePanel({ onAnalyzed }: Props) {
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="Adres veya mahalle girin (örn. Başakşehir)"
-            className="w-full rounded-xl border border-line bg-background py-3 pl-9 pr-3 text-sm text-foreground outline-none transition focus:border-primary"
+            className="w-full rounded-xl border border-line bg-black/30 py-3 pl-10 pr-3 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-white/40"
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="rounded-xl bg-primary px-5 py-3 text-sm font-medium text-white transition hover:bg-primary-soft disabled:opacity-60"
+          className="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-primary-soft disabled:opacity-50"
         >
           {loading ? "Analiz ediliyor…" : "Çevreyi Analiz Et"}
         </button>
@@ -75,7 +75,7 @@ export function AnalyzePanel({ onAnalyzed }: Props) {
               setAddress(s);
               analyze(s);
             }}
-            className="rounded-full border border-line bg-surface px-3 py-1 transition hover:border-primary hover:text-primary"
+            className="rounded-full border border-line bg-surface px-3 py-1 text-foreground/80 transition hover:border-white/40 hover:text-foreground"
           >
             {s}
           </button>
@@ -83,14 +83,15 @@ export function AnalyzePanel({ onAnalyzed }: Props) {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
 
       {loading && !result && (
-        <div className="animate-pulse rounded-2xl border border-line bg-surface p-6 text-sm text-muted">
-          Sokak görüntüsü alınıyor ve yapay zekâ ile analiz ediliyor…
+        <div className="glass animate-pulse rounded-2xl p-6 text-sm text-muted">
+          Sokağın dört yönü alınıyor ve Gemini görsel yapay zekâ ile analiz
+          ediliyor…
         </div>
       )}
 

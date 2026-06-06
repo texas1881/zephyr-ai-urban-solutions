@@ -25,7 +25,7 @@ export function DashboardShell() {
   );
 
   return (
-    <div className="flex flex-col gap-8">
+    <>
       <DynamicNav items={NAV_ITEMS} active={view} onChange={setView} />
 
       <div key={view} className="animate-[fadeIn_0.25s_ease]">
@@ -74,6 +74,6 @@ export function DashboardShell() {
           </ModuleCard>
         )}
       </div>
-    </div>
+    </>
   );
 }

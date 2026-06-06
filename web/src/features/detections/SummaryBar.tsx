@@ -6,8 +6,8 @@ type Props = {
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="flex flex-col rounded-xl border border-line bg-surface px-5 py-4 shadow-sm">
-      <span className="font-serif text-2xl font-semibold text-foreground">
+    <div className="glass flex flex-col rounded-2xl px-5 py-4">
+      <span className="text-2xl font-semibold tabular-nums text-foreground">
         {value}
       </span>
       <span className="mt-1 text-xs text-muted">{label}</span>

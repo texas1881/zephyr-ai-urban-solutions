@@ -24,13 +24,13 @@ export function DynamicNav({ items, active, onChange }: Props) {
   const widthPct = 100 / items.length;
 
   return (
-    <div className="mx-auto w-fit rounded-full border border-line bg-surface/90 p-1 shadow-sm backdrop-blur">
+    <div className="glass-strong fixed left-1/2 top-4 z-50 w-fit -translate-x-1/2 rounded-full p-1 shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
       <div
         className="relative grid"
         style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0,1fr))` }}
       >
         <div
-          className="absolute inset-y-0 rounded-full bg-primary shadow-sm transition-transform duration-300 ease-out"
+          className="absolute inset-y-0 rounded-full bg-white shadow-[0_2px_10px_rgba(255,255,255,0.25)] transition-transform duration-300 ease-out"
           style={{
             width: `${widthPct}%`,
             transform: `translateX(${activeIndex * 100}%)`,
@@ -43,7 +43,7 @@ export function DynamicNav({ items, active, onChange }: Props) {
               key={item.id}
               onClick={() => onChange(item.id)}
               className={`relative z-10 flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-5 py-2 text-sm font-medium transition-colors ${
-                isActive ? "text-white" : "text-muted hover:text-foreground"
+                isActive ? "text-black" : "text-muted hover:text-foreground"
               }`}
             >
               {item.icon && <span className="text-xs">{item.icon}</span>}

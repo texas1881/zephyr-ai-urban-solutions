@@ -8,8 +8,8 @@ type Props = {
 
 export function DetectionCard({ detection, rank }: Props) {
   return (
-    <li className="flex items-center gap-4 rounded-xl border border-line bg-surface p-4 shadow-sm">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 font-serif text-sm font-semibold text-primary">
+    <li className="glass flex items-center gap-4 rounded-2xl p-4">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-semibold text-foreground">
         {rank}
       </span>
 

@@ -18,15 +18,17 @@ export function ModuleCard({
 }: Props) {
   return (
     <section
-      className={`flex flex-col rounded-2xl border border-line bg-surface/60 p-5 shadow-sm ${className}`}
+      className={`glass flex flex-col rounded-3xl p-6 shadow-[0_10px_40px_rgba(0,0,0,0.45)] ${className}`}
     >
-      <div className="mb-4 flex items-start justify-between gap-3">
+      <div className="mb-5 flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-serif text-lg text-foreground">{title}</h2>
-          {subtitle && <p className="text-xs text-muted">{subtitle}</p>}
+          <h2 className="text-lg font-semibold tracking-tight text-foreground">
+            {title}
+          </h2>
+          {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
         </div>
         {badge && (
-          <span className="rounded-full border border-line px-2.5 py-0.5 text-[11px] text-muted">
+          <span className="shrink-0 rounded-full border border-line bg-surface px-2.5 py-0.5 text-[11px] text-foreground/80">
             {badge}
           </span>
         )}

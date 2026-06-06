@@ -1,137 +1,127 @@
 /* eslint-disable @next/next/no-img-element */
-import type { AnalysisResult, DetectedObject } from "@/types/api";
+import type { AnalysisResult } from "@/types/api";
 import { priorityColor, priorityLabel } from "@/features/detections/priority";
-import { isLitter, labelTr } from "./labels";
 import { DensityGauge } from "./DensityGauge";
 
 type Props = {
   result: AnalysisResult;
 };
 
-type Grouped = { label: string; count: number };
-
-function groupObjects(
-  objects: DetectedObject[],
-  litter: boolean,
-): Grouped[] {
-  const counts = new Map<string, number>();
-  for (const o of objects) {
-    if (isLitter(o.label) !== litter) continue;
-    counts.set(o.label, (counts.get(o.label) ?? 0) + 1);
-  }
-  return [...counts.entries()]
-    .map(([label, count]) => ({ label, count }))
-    .sort((a, b) => b.count - a.count);
-}
-
 export function AnalysisResultView({ result }: Props) {
-  const litterGroups = groupObjects(result.objects, true);
-  const contextGroups = groupObjects(result.objects, false);
+  const modelLabel =
+    result.analysisModel === "vision"
+      ? "Google Vision görsel analiz"
+      : "Nesne tespiti";
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
-      <div className="grid gap-0">
-        <div className="relative aspect-[16/10] bg-[#ece4d4]">
-          <img
-            src={result.streetViewUrl}
-            alt={`${result.address} sokak görüntüsü`}
-            className="h-full w-full object-cover"
-          />
-          <span className="absolute left-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white">
-            Google Street View
-          </span>
+    <div className="glass-strong overflow-hidden rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+      {/* 4 yön görselleri */}
+      <div className="grid grid-cols-2 gap-px bg-white/10 sm:grid-cols-4">
+        {result.directionImages.map((dir) => (
+          <div key={dir.heading} className="relative aspect-[4/3] bg-black">
+            <img
+              src={dir.url}
+              alt={`${result.address} — ${dir.label}`}
+              className="h-full w-full object-cover"
+            />
+            <span className="absolute left-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white backdrop-blur">
+              {dir.label}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-6 p-6">
+        <div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[11px] uppercase tracking-[0.18em] text-muted">
+              Analiz Sonucu
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${priorityColor[result.priority]}`}
+            >
+              {priorityLabel[result.priority]} öncelik
+            </span>
+          </div>
+          <h3 className="mt-1.5 text-xl font-semibold tracking-tight text-foreground">
+            {result.address}
+          </h3>
+          <p className="mt-0.5 text-xs text-muted">
+            {result.lat.toFixed(5)}, {result.lng.toFixed(5)} ·{" "}
+            {result.directionsScanned} yön tarandı (ön/arka/sağ/sol)
+          </p>
         </div>
 
-        <div className="flex flex-col gap-5 p-6">
+        <div className="flex flex-wrap items-center gap-6">
+          <DensityGauge score={result.densityScore} />
+          <div className="space-y-1.5 text-sm">
+            <p className="text-foreground">
+              Temizlik durumu:{" "}
+              <span className="font-semibold">{result.cleanliness}</span>
+            </p>
+            <p className="text-foreground">
+              <span className="text-2xl font-semibold tabular-nums">
+                {result.litterCount}
+              </span>{" "}
+              <span className="text-muted">çöp/kirlilik ögesi</span>
+            </p>
+            {result.cityOrder && (
+              <p className="max-w-md text-xs leading-5 text-muted">
+                Şehir düzeni: {result.cityOrder}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="glass rounded-2xl p-4">
+          <div className="mb-1.5 flex items-center gap-2">
+            <span className="text-xs font-semibold text-foreground">
+              Değerlendirme
+            </span>
+            <span className="rounded-full border border-line bg-surface px-1.5 py-0.5 text-[10px] text-muted">
+              {result.aiAssessment ? modelLabel : "otomatik"}
+            </span>
+          </div>
+          <p className="text-sm leading-6 text-foreground/90">
+            {result.assessment}
+          </p>
+        </div>
+
+        {result.litterItems.length > 0 && (
           <div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs uppercase tracking-wide text-muted">
-                Analiz Sonucu
-              </span>
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${priorityColor[result.priority]}`}
-              >
-                {priorityLabel[result.priority]} öncelik
-              </span>
-            </div>
-            <h3 className="mt-1 font-serif text-xl text-foreground">
-              {result.address}
-            </h3>
-            <p className="mt-0.5 text-xs text-muted">
-              {result.lat.toFixed(5)}, {result.lng.toFixed(5)}
+            <p className="mb-2 text-xs font-semibold text-foreground">
+              Tespit edilen atık
             </p>
-          </div>
-
-          <div className="flex items-center gap-5">
-            <DensityGauge score={result.densityScore} />
-            <div className="space-y-1 text-sm">
-              <p className="text-foreground">
-                Temizlik durumu:{" "}
-                <span className="font-medium">{result.cleanliness}</span>
-              </p>
-              <p className="text-foreground">
-                <span className="font-serif text-2xl font-semibold">
-                  {result.litterCount}
-                </span>{" "}
-                çöp/kirlilik objesi
-              </p>
-              <p className="text-muted">
-                {result.objects.length} nesne · {result.directionsScanned} yön
-                tarandı (ön/arka/sağ/sol)
-              </p>
+            <div className="flex flex-wrap gap-1.5">
+              {result.litterItems.map((g, i) => (
+                <span
+                  key={`${g.label}-${i}`}
+                  className="rounded-md bg-danger/15 px-2 py-0.5 text-xs font-medium text-danger ring-1 ring-inset ring-danger/30"
+                >
+                  {g.label} ×{g.count}
+                </span>
+              ))}
             </div>
           </div>
+        )}
 
-          <div className="rounded-xl border border-line bg-background p-3">
-            <div className="mb-1 flex items-center gap-2">
-              <span className="text-xs font-medium text-primary">
-                Değerlendirme
-              </span>
-              <span className="rounded-full border border-line px-1.5 py-0.5 text-[10px] text-muted">
-                {result.aiAssessment ? "Gemini AI" : "otomatik"}
-              </span>
-            </div>
-            <p className="text-sm leading-6 text-foreground">
-              {result.assessment}
+        {result.contextItems.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted">
+              Ortam (kirlilik göstergesi değildir)
             </p>
+            <div className="flex flex-wrap gap-1.5">
+              {result.contextItems.map((g, i) => (
+                <span
+                  key={`${g.label}-${i}`}
+                  className="rounded-md border border-line bg-surface px-2 py-0.5 text-xs text-muted"
+                >
+                  {g.label} ×{g.count}
+                </span>
+              ))}
+            </div>
           </div>
-
-          {litterGroups.length > 0 && (
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-foreground">
-                Tespit edilen atık
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {litterGroups.map((g) => (
-                  <span
-                    key={g.label}
-                    className="rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-200"
-                  >
-                    {labelTr(g.label)} ×{g.count}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {contextGroups.length > 0 && (
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-muted">
-                Ortam (kirlilik göstergesi değildir)
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {contextGroups.map((g) => (
-                  <span
-                    key={g.label}
-                    className="rounded-md border border-line bg-background px-2 py-0.5 text-xs text-muted"
-                  >
-                    {labelTr(g.label)} ×{g.count}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

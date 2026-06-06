@@ -4,10 +4,9 @@ type Props = {
 };
 
 function strokeColor(score: number): string {
-  if (score >= 80) return "#dc2626";
-  if (score >= 60) return "#ea580c";
-  if (score >= 40) return "#d97706";
-  return "#1f4d3a";
+  if (score >= 60) return "#ff453a";
+  if (score >= 25) return "#d1d1d6";
+  return "#ffffff";
 }
 
 export function DensityGauge({ score, size = 132 }: Props) {
@@ -41,10 +40,10 @@ export function DensityGauge({ score, size = 132 }: Props) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-serif text-3xl font-semibold text-foreground">
+        <span className="text-3xl font-semibold tabular-nums text-foreground">
           {clamped}
         </span>
-        <span className="text-[11px] uppercase tracking-wide text-muted">
+        <span className="text-[10px] uppercase tracking-wide text-muted">
           yoğunluk
         </span>
       </div>
