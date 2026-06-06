@@ -1,67 +1,67 @@
 # Zephyr
 
-> AI-powered urban cleanliness analysis platform — built for **Cursor Hackathon 2026: AI-Driven Urban Solutions**.
+> Belediyeler için yapay zekâ destekli kentsel temizlik analizi platformu — **Cursor Hackathon 2026: AI-Driven Kentsel Çözümler** için geliştirildi.
 
-Zephyr helps municipalities improve their environmental cleaning operations. Using a pre-trained computer-vision model served through the **Hugging Face Inference API** (no in-house training required), Zephyr detects litter and environmental pollution on the ground from street imagery, calculates **garbage density**, builds a **cleaning-priority map**, and helps municipalities plan their cleaning operations more efficiently.
+Zephyr, belediyelerin çevre temizliği operasyonlarını iyileştirmelerine yardımcı olur. Model eğitmeye gerek kalmadan, **Hugging Face Inference API** üzerindeki hazır (önceden eğitilmiş) bir nesne tespiti modeli kullanılarak sokak görüntülerindeki yerde bulunan çöp ve çevresel kirlilik tespit edilir, **çöp yoğunluğu** hesaplanır, bir **temizlik önceliği haritası** oluşturulur ve belediyelerin temizlik operasyonlarını daha verimli planlaması sağlanır.
 
-The entire system is **KVKK-compliant**: it analyzes only inanimate public objects (litter, trash, polluted areas). It performs **no** face recognition, plate reading, or person/vehicle tracking.
+Sistem tamamen **KVKK uyumludur**: yalnızca kamusal alandaki cansız objeler (çöp, atık, kirli alanlar) analiz edilir. Yüz tanıma, plaka okuma veya kişi/araç takibi **yapılmaz**.
 
 ## Problem
 
-Municipal cleaning crews often work on fixed routes without real-time insight into where pollution actually accumulates. This wastes time and budget while some areas stay dirty longer than they should.
+Belediye temizlik ekipleri çoğu zaman, kirliliğin gerçekte nerede biriktiğine dair anlık bir veri olmadan sabit güzergâhlarda çalışır. Bu durum hem zaman hem bütçe kaybına yol açar; bazı alanlar gereğinden uzun süre kirli kalır.
 
-## Solution
+## Çözüm
 
-Zephyr turns public street imagery into actionable cleaning priorities:
+Zephyr, kamusal sokak görüntülerini uygulanabilir temizlik önceliklerine dönüştürür:
 
-1. **Collect** — street/environment images are pulled via the Google Street View API.
-2. **Anonymize** — any human faces and vehicle plates are irreversibly blurred before any processing (KVKK requirement).
-3. **Detect** — a pre-trained object-detection model is called via the Hugging Face Inference API to detect litter and environmental pollution.
-4. **Score** — Zephyr computes a garbage-density score per location.
-5. **Prioritize** — locations are ranked into a cleaning-priority list / map.
-6. **Present** — results are served through a Next.js web panel and an Expo mobile app.
+1. **Topla** — Sokak/çevre görüntüleri Google Street View API üzerinden alınır.
+2. **Anonimleştir** — İşlemeden önce görüntülerdeki insan yüzleri ve araç plakaları geri döndürülemez biçimde bulanıklaştırılır (KVKK gereği).
+3. **Tespit Et** — Hugging Face Inference API üzerindeki önceden eğitilmiş nesne tespiti modeli çağrılarak çöp ve çevresel kirlilik tespit edilir.
+4. **Skorla** — Her konum için bir çöp yoğunluğu skoru hesaplanır.
+5. **Önceliklendir** — Konumlar bir temizlik öncelik listesine/haritasına göre sıralanır.
+6. **Sun** — Sonuçlar Next.js web paneli ve Expo mobil uygulaması üzerinden sunulur.
 
-## Tech Stack
+## Teknoloji Yığını
 
-| Layer | Technology |
-|-------|------------|
+| Katman | Teknoloji |
+|--------|-----------|
 | Web | Next.js + TypeScript |
-| Mobile | Expo |
-| Backend | Go (Golang) — **masterfabric-go** architecture (mandatory) |
-| AI / CV | Hugging Face Inference API (`facebook/detr-resnet-50`, object detection) |
-| Data source | Google Street View API |
+| Mobil | Expo |
+| Backend | Go (Golang) — **masterfabric-go** mimarisi (zorunlu) |
+| AI / CV | Hugging Face Inference API (`facebook/detr-resnet-50`, nesne tespiti) |
+| Veri kaynağı | Google Street View API |
 | Hosting | Vercel (web), Render.com (backend) |
 
-## Architecture
+## Mimari
 
 ```
                  ┌─────────────────────┐
                  │  Google Street View  │
                  │        API           │
                  └──────────┬──────────┘
-                            │ images
+                            │ görüntüler
                             ▼
                  ┌─────────────────────┐
-                 │   Anonymization      │  faces & plates blurred (KVKK)
+                 │   Anonimleştirme     │  yüz & plaka bulanıklaştırma (KVKK)
                  └──────────┬──────────┘
                             ▼
                  ┌─────────────────────┐
-                 │  HF Inference API    │  litter / pollution detection
-                 │  (object detection)  │  (no training, hosted model)
+                 │  HF Inference API    │  çöp / kirlilik tespiti
+                 │  (nesne tespiti)     │  (eğitim yok, hazır model)
                  └──────────┬──────────┘
                             ▼
         ┌──────────────────────────────────────┐
         │  Go Backend (masterfabric-go)         │
-        │  density scoring + priority ranking   │
+        │  yoğunluk skoru + öncelik sıralaması   │
         └───────────┬───────────────┬──────────┘
                     ▼               ▼
         ┌────────────────┐  ┌────────────────┐
-        │  Next.js Web    │  │   Expo Mobile  │
-        │  (dashboard)    │  │   (field app)  │
+        │  Next.js Web    │  │   Expo Mobil   │
+        │  (panel)        │  │   (saha uyg.)  │
         └────────────────┘  └────────────────┘
 ```
 
-All HTTP APIs use a consistent REST response envelope:
+Tüm HTTP API'leri tutarlı bir REST yanıt zarfı (envelope) kullanır:
 
 ```json
 { "success": true, "data": {} }
@@ -71,44 +71,80 @@ All HTTP APIs use a consistent REST response envelope:
 { "success": false, "message": "" }
 ```
 
-## AI & Cursor Usage
+## AI ve Cursor Kullanımı
 
-This project is developed entirely inside **Cursor IDE** with an agentic workflow.
+Proje tamamen **Cursor IDE** içinde, agentic (kurallı ajan) bir akışla geliştirilmektedir.
 
-- **Cursor Ruleset** — project-wide rules live in [`.cursor/rules/hackathon-rules.mdc`](.cursor/rules/hackathon-rules.mdc) and enforce our stack, feature-first architecture, REST conventions, KVKK rules, and commit discipline. These rules are `alwaysApply: true`, so every agent action follows the hackathon constraints automatically.
-- **Prompting** — we use Cursor's agent to scaffold features, generate typed services, and keep the README in sync with the codebase.
-- **Hugging Face Inference API** — instead of training our own model, we call a hosted, pre-trained object-detection model (`facebook/detr-resnet-50`, COCO classes used as litter proxies). It can be swapped for a TACO-finetuned litter model via the `HF_DETECTION_MODEL` env var. Integration lives in [`web/src/services/huggingFaceService.ts`](web/src/services/huggingFaceService.ts) and is exposed through `GET /api/analyze?lat=&lng=`.
+- **Cursor Ruleset** — Proje genelindeki kurallar [`.cursor/rules/hackathon-rules.mdc`](.cursor/rules/hackathon-rules.mdc) dosyasında yer alır ve teknoloji yığınımızı, feature-first mimariyi, REST kurallarını, KVKK kurallarını ve commit disiplinini zorunlu kılar. Kurallar `alwaysApply: true` olduğundan her ajan aksiyonu hackathon kısıtlarına otomatik uyar.
+- **Prompt Kullanımı** — Cursor ajanı; özellikleri iskeletlemek, tipli servisler üretmek ve README'yi kod tabanıyla senkron tutmak için kullanılır.
+- **Hugging Face Inference API** — Kendi modelimizi eğitmek yerine, barındırılan önceden eğitilmiş bir nesne tespiti modeli (`facebook/detr-resnet-50`; COCO sınıfları çöp temsilcisi olarak kullanılır) çağrılır. `HF_DETECTION_MODEL` ortam değişkeniyle TACO ile fine-tune edilmiş bir çöp modeline geçilebilir. Entegrasyon [`web/src/services/huggingFaceService.ts`](web/src/services/huggingFaceService.ts) içindedir ve `GET /api/analyze?lat=&lng=` ile sunulur.
 
-> _This section is kept up to date as the AI workflow evolves, including any Cursor CLI / SDK automation._
+> _Bu bölüm, AI akışı geliştikçe (Cursor CLI / SDK otomasyonları dâhil) güncel tutulur._
 
-## KVKK & Data Privacy
+## KVKK ve Veri Güvenliği
 
-Zephyr is built privacy-first:
+Zephyr, gizliliği önceleyerek geliştirilmiştir:
 
-- **Purpose limitation** — models target only inanimate urban objects (litter, trash, damaged roads, etc.).
-- **No personal data** — no identity detection, face recognition, plate reading, or profiling.
-- **Mandatory anonymization** — human faces and vehicle plates are irreversibly blurred before model processing.
-- **Data security** — raw imagery is never pushed to public repos or unencrypted storage.
-- **Deletion commitment** — all raw images are permanently deleted after the hackathon, documented in writing.
+- **Amaç sınırlaması** — Modeller yalnızca cansız kentsel objeleri (çöp, atık, hasarlı yol vb.) hedef alır.
+- **Kişisel veri yok** — Kimlik tespiti, yüz tanıma, plaka okuma veya profilleme yapılmaz.
+- **Zorunlu anonimleştirme** — İnsan yüzleri ve araç plakaları model işlemeden önce geri döndürülemez biçimde bulanıklaştırılır.
+- **Veri güvenliği** — Ham görüntüler asla açık repolara veya şifrelenmemiş depolamaya yüklenmez.
+- **Silme taahhüdü** — Hackathon sonunda tüm ham görüntüler kalıcı olarak silinir ve bu durum yazılı olarak belgelenir.
 
-## Repository Structure
+## Depo Yapısı
 
 ```
 zephyr-ai-urban-solutions/
-├─ web/        # Next.js dashboard + AI inference API routes
-├─ backend/    # Go API — masterfabric-go (mandatory architecture)
+├─ web/        # Next.js paneli + AI inference API route'ları
+├─ backend/    # Go API — masterfabric-go (zorunlu mimari)
 └─ .cursor/    # Cursor agentic ruleset
 ```
 
-## Team
+## Kurulum ve Çalıştırma
 
-| Role | Members |
-|------|---------|
-| Web Developer | Mert Ali Işık, Yunus Emre Günaydın |
-| Mobile Developer | Asaf Güner |
-| Documentation Writer | Ege Dündar |
+### Web (Next.js)
+
+```bash
+cd web
+npm install
+cp .env.example .env.local   # anahtarları doldur
+npm run dev                  # http://localhost:3000
+```
+
+Ortam değişkenleri (`web/.env.local`):
+
+| Değişken | Açıklama |
+|----------|----------|
+| `GOOGLE_STREET_VIEW_API_KEY` | Google Street View Static API anahtarı (sunucu tarafı) |
+| `HUGGINGFACE_API_TOKEN` | Hugging Face Inference API token'ı ("Inference Providers" izinli) |
+| `HF_DETECTION_MODEL` | Kullanılacak nesne tespiti modeli (varsayılan `facebook/detr-resnet-50`) |
+| `NEXT_PUBLIC_BACKEND_URL` | Go backend adresi (boş bırakılırsa lokal mock API kullanılır) |
+
+> Anahtarlar olmadan da panel, örnek (mock) verilerle çalışır. `GET /api/analyze` için Street View ve Hugging Face anahtarları gereklidir.
+
+### Backend (masterfabric-go)
+
+```bash
+cd backend
+make run        # http://localhost:8080  (Docker gerektirir)
+# veya hot-reload:
+./dev.sh
+```
+
+## Deploy
+
+- **Web → Vercel:** `web/` klasörü kök (root) olacak şekilde Vercel'e bağlanır; ortam değişkenleri Vercel panelinden tanımlanır.
+- **Backend → Render.com:** `backend/` klasörü Go servisi olarak deploy edilir.
+
+## Ekip
+
+| Rol | Üyeler |
+|-----|--------|
+| Web Geliştirici | Mert Ali Işık, Yunus Emre Günaydın |
+| Mobil Geliştirici | Asaf Güner |
+| Dokümantasyon | Ege Dündar |
 | Backend / AI | Mert Ali Işık, Yunus Emre Günaydın |
 
-## License
+## Lisans
 
-Built for Cursor Hackathon 2026.
+Cursor Hackathon 2026 için geliştirilmiştir.
