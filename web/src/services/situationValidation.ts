@@ -1,15 +1,9 @@
-// Post-model validation layer — filters false positives and recalculates scores
-// from only high-confidence, corroborated detections.
-
 import type { DetectedSituation, SafetyRisk } from "@/types/api";
 import { severityRank } from "@/features/analyze/situations";
 import type { SituationAnalysis } from "@/services/situationAnalysis";
 
-/** Minimum confidence to include a detection in the final report. */
-const MIN_CONFIDENCE = 0.68;
-
-/** Low-severity findings need higher confidence to avoid noise. */
-const MIN_CONFIDENCE_LOW_SEVERITY = 0.78;
+const DEFAULT_MIN = 0.55;
+const DEFAULT_MIN_LOW = 0.62;
 
 const SEVERITY_WEIGHT: Record<string, number> = {
   dusuk: 8,
@@ -18,15 +12,22 @@ const SEVERITY_WEIGHT: Record<string, number> = {
   kritik: 48,
 };
 
-function passesConfidenceGate(s: DetectedSituation): boolean {
-  const min =
-    s.severity === "dusuk" ? MIN_CONFIDENCE_LOW_SEVERITY : MIN_CONFIDENCE;
+export type ValidationOptions = {
+  minConfidence?: number;
+  minLowSeverity?: number;
+};
+
+function passesConfidenceGate(
+  s: DetectedSituation,
+  minConf: number,
+  minLow: number,
+): boolean {
+  const min = s.severity === "dusuk" ? minLow : minConf;
   if (s.confidence < min) return false;
-  if (!s.description || s.description.length < 12) return false;
+  if (!s.description || s.description.length < 8) return false;
   return true;
 }
 
-/** Drops duplicate types, keeping the highest-confidence entry. */
 function dedupeByType(situations: DetectedSituation[]): DetectedSituation[] {
   const best = new Map<string, DetectedSituation>();
   for (const s of situations) {
@@ -50,8 +51,8 @@ function scoreFromSituations(situations: DetectedSituation[]): number {
 }
 
 function cleanlinessFrom(score: number, count: number): string {
-  if (count === 0 || score < 12) return "Temiz";
-  if (score >= 55) return "Kirli";
+  if (count === 0 || score < 10) return "Temiz";
+  if (score >= 50) return "Kirli";
   return "Orta";
 }
 
@@ -59,21 +60,23 @@ function riskFrom(score: number, situations: DetectedSituation[]): SafetyRisk {
   const hasCritical = situations.some(
     (s) => s.severity === "kritik" || s.severity === "yuksek",
   );
-  if (hasCritical && score >= 40) return "yuksek";
-  if (score >= 45) return "yuksek";
-  if (score >= 22) return "orta";
+  if (hasCritical && score >= 35) return "yuksek";
+  if (score >= 40) return "yuksek";
+  if (score >= 18) return "orta";
   return "dusuk";
 }
 
-/**
- * Applies confidence gates, deduplication, and score recalculation so the
- * final output reflects only verified, high-precision detections.
- */
 export function validateSituationAnalysis(
   raw: SituationAnalysis,
+  opts?: ValidationOptions,
 ): SituationAnalysis {
+  const minConf = opts?.minConfidence ?? DEFAULT_MIN;
+  const minLow = opts?.minLowSeverity ?? DEFAULT_MIN_LOW;
+
   const situations = dedupeByType(
-    raw.situations.filter(passesConfidenceGate),
+    raw.situations.filter((s) =>
+      passesConfidenceGate(s, minConf, minLow),
+    ),
   ).slice(0, 8);
 
   const densityScore = scoreFromSituations(situations);
@@ -82,7 +85,9 @@ export function validateSituationAnalysis(
 
   const summary =
     situations.length === 0
-      ? "Bölgede yüksek güven eşiğini geçen belirgin çevre sorunu tespit edilmedi; genel görünüm uygun."
+      ? raw.situations.length > 0
+        ? `${raw.summary.split(".")[0]}. Doğrulama sonrası güven eşiğini geçen belirgin sorun kalmadı.`
+        : "Bölgede belirgin çevre sorunu tespit edilmedi; genel görünüm uygun."
       : raw.summary;
 
   return {

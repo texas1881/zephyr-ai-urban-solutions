@@ -1,5 +1,5 @@
 // Shared situation taxonomy and team routing for cleanliness analysis.
-// Used by both the Gemini detection service and the result UI.
+// Shared situation taxonomy for detection and UI.
 
 export type SituationType =
   | "temiz"

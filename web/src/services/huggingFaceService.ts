@@ -1,8 +1,6 @@
 /**
  * Hugging Face Serverless Inference — görüntü tanıma katmanı.
- *
- * Birincil: zero-shot nesne tespiti (OWLv2-large) kentsel sorgularla.
- * Yedek: COCO DETR nesne tespiti.
+ * Zero-shot (OWL) + DETR paralel çalışır, sonuçlar birleştirilir.
  */
 
 import { LITTER_LABELS } from "@/features/analyze/labels";
@@ -10,9 +8,11 @@ import { URBAN_QUERY_LABELS } from "@/features/analyze/urbanQueries";
 
 const HF_ROUTER = "https://router.huggingface.co/hf-inference/models";
 
-/** Zero-shot görüntü tanıma — yüksek kapasiteli OWLv2. */
-const DEFAULT_VISION_MODEL = "google/owlv2-large-patch14-ensemble";
-/** Klasik nesne tespiti yedeği. */
+const DEFAULT_VISION_MODEL = "google/owlv2-base-patch16-ensemble";
+const FALLBACK_OWL_MODELS = [
+  "google/owlv2-large-patch14-ensemble",
+  "google/owlvit-base-patch32",
+];
 const DEFAULT_DETR_MODEL = "facebook/detr-resnet-101";
 
 export type HFDetection = {
@@ -53,14 +53,11 @@ function detrModel(): string {
 }
 
 function minVisionScore(): number {
-  const v = Number(process.env.HF_DETECTION_THRESHOLD ?? "0.32");
-  return Number.isFinite(v) ? v : 0.32;
+  const v = Number(process.env.HF_DETECTION_THRESHOLD ?? "0.22");
+  return Number.isFinite(v) ? v : 0.22;
 }
 
-async function postInference(
-  model: string,
-  body: unknown,
-): Promise<unknown> {
+async function postInference(model: string, body: unknown): Promise<unknown> {
   const token = process.env.HUGGINGFACE_API_TOKEN;
   if (!token) throw new Error("HUGGINGFACE_API_TOKEN is not configured");
 
@@ -91,9 +88,12 @@ function normalizeBox(
   };
 }
 
-function parseDetectionArray(data: unknown): HFDetection[] {
+function parseDetectionArray(
+  data: unknown,
+  minScore?: number,
+): HFDetection[] {
   if (!Array.isArray(data)) return [];
-  const minScore = minVisionScore();
+  const floor = minScore ?? minVisionScore();
   return data
     .map((item) => {
       const r = item as Record<string, unknown>;
@@ -102,69 +102,93 @@ function parseDetectionArray(data: unknown): HFDetection[] {
       if (!label || !Number.isFinite(score)) return null;
       return { label, score, box: normalizeBox(r) };
     })
-    .filter((d): d is HFDetection => d !== null && d.score >= minScore)
+    .filter((d): d is HFDetection => d !== null && d.score >= floor)
     .sort((a, b) => b.score - a.score);
 }
 
+function mergeDetections(lists: HFDetection[][]): HFDetection[] {
+  const best = new Map<string, HFDetection>();
+  for (const list of lists) {
+    for (const d of list) {
+      const key = d.label.toLowerCase();
+      const prev = best.get(key);
+      if (!prev || d.score > prev.score) best.set(key, d);
+    }
+  }
+  return [...best.values()].sort((a, b) => b.score - a.score);
+}
+
+async function tryZeroShotModel(
+  model: string,
+  base64: string,
+  threshold: number,
+): Promise<HFDetection[]> {
+  const attempts = [
+    {
+      inputs: { image: base64, candidate_labels: URBAN_QUERY_LABELS },
+      parameters: { threshold },
+    },
+    {
+      inputs: base64,
+      parameters: { threshold, candidate_labels: URBAN_QUERY_LABELS },
+    },
+  ];
+
+  for (const body of attempts) {
+    try {
+      const data = await postInference(model, body);
+      const parsed = parseDetectionArray(data, threshold);
+      if (parsed.length > 0) return parsed;
+    } catch {
+      /* next format */
+    }
+  }
+  return [];
+}
+
+async function detectZeroShot(imageBytes: ArrayBuffer): Promise<HFDetection[]> {
+  const base64 = Buffer.from(imageBytes).toString("base64");
+  const threshold = minVisionScore();
+  const models = [visionModel(), ...FALLBACK_OWL_MODELS.filter((m) => m !== visionModel())];
+
+  for (const model of models) {
+    const hits = await tryZeroShotModel(model, base64, threshold);
+    if (hits.length > 0) return hits.slice(0, 24);
+  }
+  return [];
+}
+
 /**
- * Zero-shot kentsel nesne tespiti — OWLv2 / OWL-ViT üzerinde eğitilmiş
- * görüntü tanıma modeli, önceden tanımlı kentsel sorgularla çalışır.
+ * Zero-shot + DETR paralel — en iyi sonuçları birleştirir.
  */
 export async function detectUrbanObjects(
   imageBytes: ArrayBuffer,
 ): Promise<HFDetection[]> {
-  const base64 = Buffer.from(imageBytes).toString("base64");
   const threshold = minVisionScore();
-  const model = visionModel();
+  const [owl, detr] = await Promise.allSettled([
+    detectZeroShot(imageBytes),
+    detectObjects(imageBytes, Math.min(threshold, 0.2)),
+  ]);
 
-  // Format A: inputs + parameters.candidate_labels (OWL zero-shot)
-  try {
-    const data = await postInference(model, {
-      inputs: {
-        image: base64,
-        candidate_labels: URBAN_QUERY_LABELS,
-      },
-      parameters: { threshold },
-    });
-    const parsed = parseDetectionArray(data);
-    if (parsed.length > 0) return parsed.slice(0, 24);
-  } catch {
-    /* try format B */
-  }
+  const lists: HFDetection[][] = [];
+  if (owl.status === "fulfilled") lists.push(owl.value);
+  if (detr.status === "fulfilled") lists.push(detr.value);
 
-  // Format B: raw base64 + candidate_labels in parameters
-  try {
-    const data = await postInference(model, {
-      inputs: base64,
-      parameters: { threshold, candidate_labels: URBAN_QUERY_LABELS },
-    });
-    const parsed = parseDetectionArray(data);
-    if (parsed.length > 0) return parsed.slice(0, 24);
-  } catch {
-    /* fall through to DETR */
-  }
-
-  return detectObjects(imageBytes, threshold);
+  return mergeDetections(lists).slice(0, 30);
 }
 
-/**
- * Klasik COCO nesne tespiti (DETR) — zero-shot başarısız olursa yedek.
- */
 export async function detectObjects(
   imageBytes: ArrayBuffer,
-  threshold = 0.3,
+  threshold = 0.2,
 ): Promise<HFDetection[]> {
   const base64 = Buffer.from(imageBytes).toString("base64");
   const data = await postInference(detrModel(), {
     inputs: base64,
     parameters: { threshold },
   });
-  return parseDetectionArray(data);
+  return parseDetectionArray(data, threshold);
 }
 
-/**
- * Ham tespitleri çöp sayısı ve yoğunluk skoruna çevirir (DETR yolu için).
- */
 export function summarizeDetections(
   detections: Array<{ label: string; score: number }>,
 ): DetectionSummary {

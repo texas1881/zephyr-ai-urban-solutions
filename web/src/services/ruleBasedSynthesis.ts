@@ -1,4 +1,4 @@
-// Deterministic situation synthesis from vision detections — no LLM hallucination.
+// Deterministic situation synthesis from vision detections.
 
 import {
   URBAN_DETECTION_QUERIES,
@@ -8,8 +8,35 @@ import type { DetectedSituation, SafetyRisk } from "@/types/api";
 import type { SituationAnalysis } from "@/services/situationAnalysis";
 import { validateSituationAnalysis } from "@/services/situationValidation";
 import type { DirectionDetections, HFDetection } from "@/services/huggingFaceService";
+import type { SituationType } from "@/features/analyze/situations";
 
-const MIN_DETECTION_SCORE = 0.38;
+const MIN_DETECTION_SCORE = 0.22;
+
+/** COCO/DETR etiketleri → durum tipi */
+const COCO_SITUATION: Record<string, SituationType> = {
+  bottle: "cop_kirliligi",
+  cup: "cop_kirliligi",
+  "wine glass": "cop_kirliligi",
+  bowl: "cop_kirliligi",
+  can: "cop_kirliligi",
+  banana: "cop_kirliligi",
+  apple: "cop_kirliligi",
+  orange: "cop_kirliligi",
+  sandwich: "cop_kirliligi",
+  pizza: "cop_kirliligi",
+  donut: "cop_kirliligi",
+  cake: "cop_kirliligi",
+  fork: "cop_kirliligi",
+  knife: "cop_kirliligi",
+  spoon: "cop_kirliligi",
+  book: "cop_kirliligi",
+  handbag: "cop_kirliligi",
+  backpack: "kaldirim_isgali",
+  suitcase: "kaldirim_isgali",
+  chair: "kaldirim_isgali",
+  couch: "kaldirim_isgali",
+  "potted plant": "yabani_ot",
+};
 
 function matchQuery(label: string): UrbanQuery | undefined {
   const lower = label.toLowerCase().trim();
@@ -21,14 +48,19 @@ function matchQuery(label: string): UrbanQuery | undefined {
   );
 }
 
+function matchCoco(label: string): SituationType | undefined {
+  return COCO_SITUATION[label.toLowerCase().trim()];
+}
+
 function severityFromScore(score: number): DetectedSituation["severity"] {
-  if (score >= 0.72) return "yuksek";
-  if (score >= 0.52) return "orta";
+  if (score >= 0.65) return "yuksek";
+  if (score >= 0.42) return "orta";
   return "dusuk";
 }
 
-function actionFor(type: UrbanQuery["situationHint"]): string {
-  const map: Record<UrbanQuery["situationHint"], string> = {
+function actionFor(type: SituationType): string {
+  const map: Record<SituationType, string> = {
+    temiz: "—",
     cop_kirliligi: "Temizlik ekibi ile yerden atık toplama",
     asiri_kirli: "Acil temizlik ve çöp toplama operasyonu",
     dolu_cop_kutusu: "Çöp kutusu boşaltımı veya ek konteyner",
@@ -44,23 +76,21 @@ function actionFor(type: UrbanQuery["situationHint"]): string {
 }
 
 function buildSituation(
-  hint: UrbanQuery,
+  type: SituationType,
   detection: HFDetection,
   direction: string,
 ): DetectedSituation {
-  const severity = severityFromScore(detection.score);
   return {
-    type: hint.situationHint,
-    severity,
-    confidence: Math.min(0.95, detection.score),
+    type,
+    severity: severityFromScore(detection.score),
+    confidence: Math.min(0.92, detection.score + 0.05),
     description: `Görüntü tanıma: "${detection.label}" (skor ${(detection.score * 100).toFixed(0)}%)`,
     location: "sokak görüntüsünde tespit edilen alan",
-    recommendedAction: actionFor(hint.situationHint),
+    recommendedAction: actionFor(type),
     direction,
   };
 }
 
-/** Filters detections to those above the minimum vision score. */
 export function filterSignificantDetections(
   directions: DirectionDetections[],
 ): DirectionDetections[] {
@@ -84,9 +114,6 @@ export function cleanSituationAnalysis(address: string): SituationAnalysis {
   };
 }
 
-/**
- * Builds SituationAnalysis purely from vision model outputs — grounded, no LLM.
- */
 export function synthesizeFromDetectionsRuleBased(
   address: string,
   directions: DirectionDetections[],
@@ -101,12 +128,14 @@ export function synthesizeFromDetectionsRuleBased(
   for (const dir of filtered) {
     for (const det of dir.detections) {
       const hint = matchQuery(det.label);
-      if (!hint) continue;
-      const key = hint.situationHint;
-      const candidate = buildSituation(hint, det, dir.label);
-      const prev = bestByType.get(key);
+      const cocoType = matchCoco(det.label);
+      const type = hint?.situationHint ?? cocoType;
+      if (!type) continue;
+
+      const candidate = buildSituation(type, det, dir.label);
+      const prev = bestByType.get(type);
       if (!prev || candidate.confidence > prev.confidence) {
-        bestByType.set(key, candidate);
+        bestByType.set(type, candidate);
       }
     }
   }
@@ -127,5 +156,8 @@ export function synthesizeFromDetectionsRuleBased(
     situations,
   };
 
-  return validateSituationAnalysis(raw);
+  return validateSituationAnalysis(raw, {
+    minConfidence: 0.42,
+    minLowSeverity: 0.48,
+  });
 }

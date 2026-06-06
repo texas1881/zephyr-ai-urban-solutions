@@ -4,7 +4,7 @@
 // with a multimodal model (default: Qwen3-VL-8B-Instruct, served by Novita).
 // All four Street View directions are sent in a single request together with
 // the shared detection prompt, and the JSON response is parsed into the same
-// SituationAnalysis shape used by the Gemini engine.
+// Parses into the shared SituationAnalysis contract.
 
 import {
   parseSituationResponse,

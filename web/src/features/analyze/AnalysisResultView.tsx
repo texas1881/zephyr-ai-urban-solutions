@@ -77,21 +77,13 @@ export function AnalysisResultView({
 
   const modelLabel =
     result.analysisModel === "hf-detection-llm"
-      ? "Görüntü tanıma + dil modeli"
+      ? "Görüntü tanıma (OWL+DETR)"
       : result.analysisModel === "hf-vision"
-        ? "Yapay zekâ görsel analizi"
-        : result.analysisModel === "gemini"
-          ? "Yapay zekâ görsel analizi"
-          : result.analysisModel === "vision"
-            ? "Google Vision"
-            : "Nesne tespiti";
+        ? "Yapay zekâ görsel analizi (Qwen-VL)"
+        : "Nesne tespiti (DETR)";
 
   const reportLabel =
-    result.reportEngine === "gemini"
-      ? "Gemini yorum"
-      : result.reportEngine === "hf"
-        ? "Yapay zekâ yorum"
-        : "Doğrulanmış özet";
+    result.reportEngine === "hf" ? "Yapay zekâ yorum" : "Doğrulanmış özet";
 
   const canDispatch =
     !dispatchedTeam &&

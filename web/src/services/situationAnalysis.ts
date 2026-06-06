@@ -1,6 +1,5 @@
 // Shared prompt + response parser for multimodal situation detection.
-// Used by both the Gemini and the Hugging Face (Qwen-VL) vision services so the
-// detection taxonomy and JSON contract stay identical across engines.
+// Shared prompt + JSON parser for HF vision-language detection (Qwen-VL).
 
 import {
   isSeverity,
@@ -29,8 +28,8 @@ Sana aynı konumun DÖRT yönüne (ön/arka/sağ/sol) ait Google Street View gö
 3. Aynı sorun birden fazla yönde görünüyorsa TEK kayıt yaz; en net göründüğü yönü kullan.
 4. Gölge, bulanıklık, uzaklık veya düşük çözünürlük nedeniyle emin olamadığın şeyleri ATLA.
 
-TESPİT EDİLECEK DURUM TİPLERİ (yalnızca açık kanıt varsa):
-- cop_kirliligi: yerde BELİRGİN dağılmış çöp/atık (tek poşet değil, net görünür kirlilik)
+TESPİT EDİLECEK DURUM TİPLERİ (görüntüde görünüyorsa raporla):
+- cop_kirliligi: yerde dağılmış çöp/atık, karton kutu, plastik kova, poşet, ambalaj, sokak kenarında dağınık malzeme
 - asiri_kirli: yoğun çöp birikimi veya çöp yığını
 - dolu_cop_kutusu: taşmış veya açıkça dolu çöp kutusu/konteyner
 - yol_hasari: belirgin çukur, geniş çatlak veya ciddi asfalt/kaldırım hasarı
@@ -49,10 +48,10 @@ YANLIŞ POZİTİF — ASLA SORUN SAYMA:
 - Kişi/plaka tanımlama; yalnızca cansız çevre unsurları
 
 GÜVEN SKORU KURALLARI:
-- confidence ≥ 0.75: görüntüde açıkça görülen, tartışmasız sorun
-- confidence 0.65–0.74: net ama kısmen gizli sorun
-- confidence < 0.65: RAPOR ETME — situations listesine ekleme
-- Uydurma veya tahmine dayalı tespit YASAK
+- confidence ≥ 0.70: görüntüde açıkça görülen sorun (karton kutu, çöp yığını, plastik kova vb.)
+- confidence 0.58–0.69: net görünen ama kısmen gizli sorun
+- confidence < 0.58: RAPOR ETME
+- Uydurma veya tahmine dayalı tespit YASAK; ama görüntüde NET görünen atığı atlama
 
 SONUÇ:
 - Belirgin sorun yoksa situations = [], cleanliness = "Temiz", densityScore ≤ 10, safetyRisk = "dusuk"

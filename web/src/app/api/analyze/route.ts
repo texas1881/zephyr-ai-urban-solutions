@@ -18,11 +18,7 @@ import {
   detectObjects,
   summarizeDetections,
 } from "@/services/huggingFaceService";
-import {
-  analyzeImagesWithVision,
-  type VisionImageInput,
-} from "@/services/visionService";
-import { analyzeWithDetectionPipeline } from "@/services/hfDetectionPipeline";
+import { runDetectionCascade } from "@/services/detectionCascade";
 import type { DirectionImageInput } from "@/services/huggingFaceService";
 import type { SituationAnalysis } from "@/services/situationAnalysis";
 import { generateReport } from "@/services/reportService";
@@ -74,8 +70,7 @@ function situationsToItems(situations: DetectedSituation[]): LabeledCount[] {
 /**
  * Analyzes a location by scanning four Street View directions
  * (front/right/back/left). Detection engine is a free Hugging Face multimodal
- * HF görüntü tanıma (OWLv2) → HF dil modeli; yedek Google Vision, DETR.
- * Kapsamlı yorum raporu ayrı üretilir (Gemini → HF → local).
+ * HF tespit: OWLv2+DETR → Qwen-VL yedek. Rapor: HF metin → yerel özet.
  *   GET /api/analyze?address=Başakşehir
  *   GET /api/analyze?lat=41.09&lng=28.80
  */
@@ -194,103 +189,63 @@ export async function GET(req: NextRequest) {
 
     let result: AnalysisResult;
 
-    // --- Primary: HF görüntü tanıma (OWLv2) → HF dil modeli ---
     try {
-      result = buildFromSituations(
-        await analyzeWithDetectionPipeline(finalAddress, input),
+      const { analysis, model } = await runDetectionCascade(
+        finalAddress,
+        input,
       );
+      result = buildFromSituations(analysis, model);
     } catch {
-      // --- Fallback 1: Google Cloud Vision ---
-      try {
-        const visionInput: VisionImageInput[] = fetched.map((d) => ({
-          label: d.label,
-          heading: d.heading,
-          base64: Buffer.from(d.bytes).toString("base64"),
-        }));
-        const vision = await analyzeImagesWithVision(finalAddress, visionInput);
+      const perDirection = await Promise.all(
+        fetched.map((d) => detectObjects(d.bytes)),
+      );
+      const allObjects: DetectedObject[] = perDirection
+        .flat()
+        .map((d) => ({ label: d.label, score: d.score }));
+      const summary = summarizeDetections(allObjects);
+      const litterItems = groupLabeled(allObjects, "litter");
+      const cleanliness =
+        summary.densityScore >= 60
+          ? "Kirli"
+          : summary.densityScore >= 25
+            ? "Orta"
+            : "Temiz";
 
-        result = {
-          address: finalAddress,
-          lat,
-          lng,
-          litterCount: vision.litterItems.reduce((s, i) => s + i.count, 0),
-          densityScore: vision.densityScore,
-          priority: scoreToPriority(vision.densityScore),
-          streetViewUrl: baseUrl,
-          directionImages,
-          litterItems: vision.litterItems,
-          contextItems: vision.contextItems,
-          objects: flatten(vision.litterItems),
-          directionsScanned,
-          cleanliness: vision.cleanliness,
-          assessment: vision.comment,
-          aiReport: "",
-          reportEngine: "local",
-          cityOrder: vision.cityOrder,
-          aiAssessment: true,
-          analysisModel: "vision",
-          situations: [],
-          safetyRisk: riskFromScore(vision.densityScore),
-          recommendedTeam:
-            vision.litterItems.length > 0 ? "Temizlik Ekibi" : "—",
-          status: "pending",
-          assignedTeam: "",
-        };
-      } catch {
-        // --- Fallback 3: COCO object detection ---
-        const perDirection = await Promise.all(
-          fetched.map((d) => detectObjects(d.bytes)),
-        );
-        const allObjects: DetectedObject[] = perDirection
-          .flat()
-          .map((d) => ({ label: d.label, score: d.score }));
-        const summary = summarizeDetections(allObjects);
-        const litterItems = groupLabeled(allObjects, "litter");
-        const cleanliness =
-          summary.densityScore >= 60
-            ? "Kirli"
-            : summary.densityScore >= 25
-              ? "Orta"
-              : "Temiz";
-        const assessment =
+      result = {
+        address: finalAddress,
+        lat,
+        lng,
+        litterCount: summary.litterCount,
+        densityScore: summary.densityScore,
+        priority: scoreToPriority(summary.densityScore),
+        streetViewUrl: baseUrl,
+        directionImages,
+        litterItems,
+        contextItems: groupLabeled(allObjects, "context"),
+        objects: allObjects,
+        directionsScanned,
+        cleanliness,
+        assessment:
           litterItems.length === 0
-            ? `${finalAddress} bölgesinde belirgin çöp/atık tespit edilmedi; bölge temiz görünüyor.`
+            ? `${finalAddress} bölgesinde belirgin çöp/atık tespit edilmedi.`
             : `${finalAddress} bölgesinde ${litterItems
                 .slice(0, 5)
                 .map((i) => `${i.label} ×${i.count}`)
-                .join(", ")} tespit edildi. Temizlik durumu: ${cleanliness}.`;
-
-        result = {
-          address: finalAddress,
-          lat,
-          lng,
-          litterCount: summary.litterCount,
-          densityScore: summary.densityScore,
-          priority: scoreToPriority(summary.densityScore),
-          streetViewUrl: baseUrl,
-          directionImages,
-          litterItems,
-          contextItems: groupLabeled(allObjects, "context"),
-          objects: allObjects,
-          directionsScanned,
-          cleanliness,
-          assessment,
-          aiReport: "",
-          reportEngine: "local",
-          cityOrder: "",
-          aiAssessment: false,
-          analysisModel: "object-detection",
-          situations: [],
-          safetyRisk: riskFromScore(summary.densityScore),
-          recommendedTeam: litterItems.length > 0 ? "Temizlik Ekibi" : "—",
-          status: "pending",
-          assignedTeam: "",
-        };
-      }
+                .join(", ")} tespit edildi.`,
+        aiReport: "",
+        reportEngine: "local",
+        cityOrder: "",
+        aiAssessment: false,
+        analysisModel: "object-detection",
+        situations: [],
+        safetyRisk: riskFromScore(summary.densityScore),
+        recommendedTeam: litterItems.length > 0 ? "Temizlik Ekibi" : "—",
+        status: "pending",
+        assignedTeam: "",
+      };
     }
 
-    // Comprehensive AI commentary (Gemini → HF → local). Detection is already
-    // done above; this only adds the human-readable report and never throws.
+    // Kapsamlı rapor (HF metin → yerel). Tespitten bağımsız, hata fırlatmaz.
     const generated = await generateReport({
       address: result.address,
       cleanliness: result.cleanliness,
