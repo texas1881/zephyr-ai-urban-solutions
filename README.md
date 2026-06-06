@@ -18,4 +18,3 @@ AI-powered urban monitoring and municipal decision support platform developed fo
 - Golang
 - Hugging Face
 - Google Street View API
-türk
