@@ -10,7 +10,7 @@ type Props = {
 export function AnalysisResultView({ result }: Props) {
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
-      <div className="grid gap-0 md:grid-cols-2">
+      <div className="grid gap-0">
         <div className="relative aspect-[16/10] bg-[#ece4d4]">
           <img
             src={result.streetViewUrl}
