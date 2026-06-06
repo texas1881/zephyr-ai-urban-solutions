@@ -2,7 +2,7 @@
 
 > AI-powered urban cleanliness analysis platform — built for **Cursor Hackathon 2026: AI-Driven Urban Solutions**.
 
-Zephyr helps municipalities improve their environmental cleaning operations. Using computer vision models trained on Hugging Face datasets, Zephyr detects litter and environmental pollution on the ground from street imagery, calculates **garbage density**, builds a **cleaning-priority map**, and helps municipalities plan their cleaning operations more efficiently.
+Zephyr helps municipalities improve their environmental cleaning operations. Using a pre-trained computer-vision model served through the **Hugging Face Inference API** (no in-house training required), Zephyr detects litter and environmental pollution on the ground from street imagery, calculates **garbage density**, builds a **cleaning-priority map**, and helps municipalities plan their cleaning operations more efficiently.
 
 The entire system is **KVKK-compliant**: it analyzes only inanimate public objects (litter, trash, polluted areas). It performs **no** face recognition, plate reading, or person/vehicle tracking.
 
@@ -16,7 +16,7 @@ Zephyr turns public street imagery into actionable cleaning priorities:
 
 1. **Collect** — street/environment images are pulled via the Google Street View API.
 2. **Anonymize** — any human faces and vehicle plates are irreversibly blurred before any processing (KVKK requirement).
-3. **Detect** — a computer-vision model (Hugging Face) detects litter and environmental pollution.
+3. **Detect** — a pre-trained object-detection model is called via the Hugging Face Inference API to detect litter and environmental pollution.
 4. **Score** — Zephyr computes a garbage-density score per location.
 5. **Prioritize** — locations are ranked into a cleaning-priority list / map.
 6. **Present** — results are served through a Next.js web panel and an Expo mobile app.
@@ -28,7 +28,7 @@ Zephyr turns public street imagery into actionable cleaning priorities:
 | Web | Next.js + TypeScript |
 | Mobile | Expo |
 | Backend | Go (Golang) — **masterfabric-go** architecture (mandatory) |
-| AI / CV | Hugging Face models, Computer Vision |
+| AI / CV | Hugging Face Inference API (`facebook/detr-resnet-50`, object detection) |
 | Data source | Google Street View API |
 | Hosting | Vercel (web), Render.com (backend) |
 
@@ -46,7 +46,8 @@ Zephyr turns public street imagery into actionable cleaning priorities:
                  └──────────┬──────────┘
                             ▼
                  ┌─────────────────────┐
-                 │  CV Model (HF)       │  litter / pollution detection
+                 │  HF Inference API    │  litter / pollution detection
+                 │  (object detection)  │  (no training, hosted model)
                  └──────────┬──────────┘
                             ▼
         ┌──────────────────────────────────────┐
@@ -76,7 +77,7 @@ This project is developed entirely inside **Cursor IDE** with an agentic workflo
 
 - **Cursor Ruleset** — project-wide rules live in [`.cursor/rules/hackathon-rules.mdc`](.cursor/rules/hackathon-rules.mdc) and enforce our stack, feature-first architecture, REST conventions, KVKK rules, and commit discipline. These rules are `alwaysApply: true`, so every agent action follows the hackathon constraints automatically.
 - **Prompting** — we use Cursor's agent to scaffold features, generate typed services, and keep the README in sync with the codebase.
-- **Hugging Face** — pretrained CV models are fine-tuned / used for litter and pollution detection.
+- **Hugging Face Inference API** — instead of training our own model, we call a hosted, pre-trained object-detection model (`facebook/detr-resnet-50`, COCO classes used as litter proxies). It can be swapped for a TACO-finetuned litter model via the `HF_DETECTION_MODEL` env var. Integration lives in [`web/src/services/huggingFaceService.ts`](web/src/services/huggingFaceService.ts) and is exposed through `GET /api/analyze?lat=&lng=`.
 
 > _This section is kept up to date as the AI workflow evolves, including any Cursor CLI / SDK automation._
 
@@ -94,10 +95,8 @@ Zephyr is built privacy-first:
 
 ```
 zephyr-ai-urban-solutions/
-├─ web/        # Next.js dashboard
-├─ mobile/     # Expo field app
-├─ backend/    # Go API (masterfabric-go)
-├─ ai/         # CV model training & inference
+├─ web/        # Next.js dashboard + AI inference API routes
+├─ backend/    # Go API — masterfabric-go (mandatory architecture)
 └─ .cursor/    # Cursor agentic ruleset
 ```
 
