@@ -1,6 +1,7 @@
 import { mockDetections } from "@/features/detections/mockData";
 import { DetectionCard } from "@/features/detections/DetectionCard";
 import { SummaryBar } from "@/features/detections/SummaryBar";
+import { AnalyzePanel } from "@/features/analyze/AnalyzePanel";
 
 export default function Home() {
   const detections = [...mockDetections].sort(
@@ -8,45 +9,72 @@ export default function Home() {
   );
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-3xl px-5 py-12">
-      <header className="mb-8">
-        <div className="flex items-center gap-2">
-          <span className="rounded-md bg-zinc-900 px-2 py-0.5 text-xs font-semibold text-white dark:bg-white dark:text-zinc-900">
-            Zephyr
-          </span>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">
-            Kentsel Temizlik Analizi
+    <div className="flex flex-1 flex-col">
+      <header className="border-b border-line bg-surface/70 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-5 py-4">
+          <div className="flex items-center gap-2">
+            <span className="font-serif text-xl font-semibold text-primary">
+              Zephyr
+            </span>
+            <span className="hidden text-xs text-muted sm:inline">
+              Kentsel Temizlik Analizi
+            </span>
+          </div>
+          <span className="rounded-full border border-line px-3 py-1 text-xs text-muted">
+            KVKK uyumlu
           </span>
         </div>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Temizlik Öncelik Panosu
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Sokak görüntülerinden tespit edilen çöp yoğunluğuna göre sıralanmış
-          temizlik öncelikleri.
-        </p>
       </header>
 
-      <SummaryBar detections={detections} />
+      <main className="mx-auto w-full max-w-4xl flex-1 px-5 py-12">
+        <section className="mb-10 text-center">
+          <p className="mb-3 text-xs uppercase tracking-[0.2em] text-accent">
+            Belediyeler için yapay zekâ destekli analiz
+          </p>
+          <h1 className="font-serif text-4xl leading-tight text-foreground sm:text-5xl">
+            Şehrin temizliğini <br className="hidden sm:block" /> haritalandırın
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-muted">
+            Bir adres girin; Zephyr o bölgenin Google Street View görüntüsünü
+            alır, yapay zekâ ile yerdeki çöp ve kirliliği tespit eder ve temizlik
+            önceliğini hesaplar.
+          </p>
+        </section>
 
-      <section className="mt-8">
-        <h2 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Öncelik sıralaması
-        </h2>
-        <ul className="flex flex-col gap-3">
-          {detections.map((detection, index) => (
-            <DetectionCard
-              key={detection.id}
-              detection={detection}
-              rank={index + 1}
-            />
-          ))}
-        </ul>
-      </section>
+        <section className="mb-14">
+          <AnalyzePanel />
+        </section>
 
-      <footer className="mt-12 text-center text-xs text-zinc-400 dark:text-zinc-600">
-        KVKK uyumlu · Yalnızca kamusal alandaki cansız objeler analiz edilir.
+        <section>
+          <div className="mb-5 flex items-end justify-between">
+            <div>
+              <h2 className="font-serif text-2xl text-foreground">
+                Temizlik Öncelik Panosu
+              </h2>
+              <p className="text-sm text-muted">
+                Çöp yoğunluğuna göre sıralanmış bölgeler.
+              </p>
+            </div>
+          </div>
+
+          <SummaryBar detections={detections} />
+
+          <ul className="mt-6 flex flex-col gap-3">
+            {detections.map((detection, index) => (
+              <DetectionCard
+                key={detection.id}
+                detection={detection}
+                rank={index + 1}
+              />
+            ))}
+          </ul>
+        </section>
+      </main>
+
+      <footer className="border-t border-line py-6 text-center text-xs text-muted">
+        KVKK uyumlu · Yalnızca kamusal alandaki cansız objeler analiz edilir ·
+        Cursor Hackathon 2026
       </footer>
-    </main>
+    </div>
   );
 }

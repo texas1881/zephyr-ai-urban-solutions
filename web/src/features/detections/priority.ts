@@ -20,3 +20,10 @@ export function densityBarColor(score: number): string {
   if (score >= 40) return "bg-amber-500";
   return "bg-emerald-500";
 }
+
+export function scoreToPriority(score: number): PriorityLevel {
+  if (score >= 80) return "critical";
+  if (score >= 60) return "high";
+  if (score >= 40) return "medium";
+  return "low";
+}

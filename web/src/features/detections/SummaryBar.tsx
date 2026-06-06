@@ -6,13 +6,11 @@ type Props = {
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="flex flex-col rounded-xl border border-zinc-200 bg-white px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <span className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+    <div className="flex flex-col rounded-xl border border-line bg-surface px-5 py-4 shadow-sm">
+      <span className="font-serif text-2xl font-semibold text-foreground">
         {value}
       </span>
-      <span className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-        {label}
-      </span>
+      <span className="mt-1 text-xs text-muted">{label}</span>
     </div>
   );
 }
