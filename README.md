@@ -95,10 +95,14 @@ Zephyr, gizliliği önceleyerek geliştirilmiştir:
 
 ```
 zephyr-ai-urban-solutions/
-├─ web/        # Next.js paneli + AI inference API route'ları
-├─ backend/    # Go API — masterfabric-go (zorunlu mimari)
+├─ web/        # Next.js paneli (dinamik dashboard) + AI inference API route'ları
+├─ backend/    # masterfabric-go (zorunlu mimari) + Zephyr kayıt API'si (cmd/zephyr)
 └─ .cursor/    # Cursor agentic ruleset
 ```
+
+Web paneli üç modülden oluşur ve üstteki dinamik menüyle modüller arası geçiş yapılır:
+**Analiz** (adres → Street View → AI tespiti), **Kayıtlar** (veri birikimi + istatistik),
+**Pano** (temizlik öncelik listesi).
 
 ## Kurulum ve Çalıştırma
 
@@ -124,12 +128,34 @@ Ortam değişkenleri (`web/.env.local`):
 
 ### Backend (masterfabric-go)
 
+Backend, zorunlu **masterfabric-go** mimarisi üzerine kuruludur. Zephyr'in
+veri-biriktirme bağlamı (analiz kayıtları) bu repo içine clean-architecture
+katlarıyla (`internal/zephyr/{domain,store,transport}`) eklenmiştir.
+
+Zephyr kayıt API'si (Postgres gerektirmez, bellek-içi depo):
+
+```bash
+cd backend
+go run ./cmd/zephyr     # http://localhost:8080
+```
+
+Tam masterfabric-go platformu (Postgres/Redis/Kafka ile):
+
 ```bash
 cd backend
 make run        # http://localhost:8080  (Docker gerektirir)
-# veya hot-reload:
-./dev.sh
+./dev.sh        # hot-reload
 ```
+
+**Kayıt API uçları** (`{ success, data }` zarfı):
+
+- `POST /api/v1/records` — yeni analiz kaydı ekle
+- `GET /api/v1/records` — kayıtları listele (yeniden eskiye)
+- `GET /api/v1/records/stats` — toplu istatistikler
+- `GET /health/live` — canlılık kontrolü
+
+Web paneli `NEXT_PUBLIC_BACKEND_URL` tanımlıysa kayıtları bu API'ye gönderir;
+tanımlı değilse veriyi tarayıcıda (localStorage) biriktirir.
 
 ## Deploy
 
