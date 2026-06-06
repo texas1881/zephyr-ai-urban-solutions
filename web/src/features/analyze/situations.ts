@@ -8,7 +8,11 @@ export type SituationType =
   | "dolu_cop_kutusu"
   | "yol_hasari"
   | "moloz_hafriyat"
-  | "grafiti";
+  | "grafiti"
+  | "kaldirim_isgali"
+  | "bozuk_tabela"
+  | "su_birikintisi"
+  | "yabani_ot";
 
 export type Severity = "dusuk" | "orta" | "yuksek" | "kritik";
 
@@ -20,6 +24,10 @@ export const SITUATION_LABEL: Record<SituationType, string> = {
   yol_hasari: "Yol hasarı",
   moloz_hafriyat: "Moloz / hafriyat",
   grafiti: "Grafiti",
+  kaldirim_isgali: "Kaldırım işgali",
+  bozuk_tabela: "Bozuk tabela / levha",
+  su_birikintisi: "Su birikintisi",
+  yabani_ot: "Yabani ot / bakımsızlık",
 };
 
 export const SEVERITY_LABEL: Record<Severity, string> = {
@@ -36,8 +44,12 @@ export const SITUATION_TEAM: Record<SituationType, string> = {
   asiri_kirli: "Temizlik Ekibi",
   dolu_cop_kutusu: "Temizlik Ekibi",
   grafiti: "Temizlik Ekibi",
+  yabani_ot: "Temizlik Ekibi",
   yol_hasari: "Yol Bakım Ekibi",
   moloz_hafriyat: "Yol Bakım Ekibi",
+  kaldirim_isgali: "Yol Bakım Ekibi",
+  bozuk_tabela: "Yol Bakım Ekibi",
+  su_birikintisi: "Yol Bakım Ekibi",
 };
 
 export const TEAMS = ["Temizlik Ekibi", "Yol Bakım Ekibi"] as const;

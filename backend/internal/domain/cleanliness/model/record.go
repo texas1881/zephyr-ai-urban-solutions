@@ -21,11 +21,13 @@ type DetectedObject struct {
 // Situation is a single field situation detected by the vision model
 // (litter, road damage, extreme dirt, ...).
 type Situation struct {
-	Type        string  `json:"type"`
-	Severity    string  `json:"severity"`
-	Confidence  float64 `json:"confidence"`
-	Description string  `json:"description"`
-	Direction   string  `json:"direction"`
+	Type              string  `json:"type"`
+	Severity          string  `json:"severity"`
+	Confidence        float64 `json:"confidence"`
+	Description       string  `json:"description"`
+	Direction         string  `json:"direction"`
+	RecommendedAction string  `json:"recommendedAction,omitempty"`
+	Location          string  `json:"location,omitempty"`
 }
 
 // Record is a persisted cleanliness/litter analysis for a location
@@ -43,6 +45,7 @@ type Record struct {
 	Objects       []DetectedObject `json:"objects"`
 	// Field-management state
 	Situations      []Situation `json:"situations"`
+	SafetyRisk      string      `json:"safetyRisk,omitempty"`
 	RecommendedTeam string      `json:"recommendedTeam"`
 	Status          string      `json:"status"`
 	AssignedTeam    string      `json:"assignedTeam"`

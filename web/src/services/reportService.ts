@@ -5,8 +5,14 @@
 // engine (per product decision), with a Hugging Face text model fallback and a
 // final local heuristic so the report never blocks the response.
 
-import type { DetectedSituation } from "@/types/api";
+import type { DetectedSituation, SafetyRisk } from "@/types/api";
 import { SITUATION_LABEL, SEVERITY_LABEL } from "@/features/analyze/situations";
+
+const RISK_LABEL: Record<SafetyRisk, string> = {
+  dusuk: "Düşük",
+  orta: "Orta",
+  yuksek: "Yüksek",
+};
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const HF_ROUTER = "https://router.huggingface.co/v1/chat/completions";
@@ -30,6 +36,7 @@ export type ReportContext = {
   address: string;
   cleanliness: string;
   densityScore: number;
+  safetyRisk: SafetyRisk;
   recommendedTeam: string;
   directionsScanned: number;
   situations: DetectedSituation[];
@@ -56,12 +63,20 @@ function buildPrompt(ctx: ReportContext): string {
     ctx.situations.length === 0
       ? "Belirgin bir çevresel sorun tespit edilmedi."
       : ctx.situations
-          .map(
-            (s) =>
-              `- ${SITUATION_LABEL[s.type]} (önem: ${SEVERITY_LABEL[s.severity]}, güven: %${Math.round(
-                s.confidence * 100,
-              )}, yön: ${s.direction || "—"})${s.description ? ` — ${s.description}` : ""}`,
-          )
+          .map((s) => {
+            const meta = [
+              `önem: ${SEVERITY_LABEL[s.severity]}`,
+              `güven: %${Math.round(s.confidence * 100)}`,
+              `yön: ${s.direction || "—"}`,
+            ];
+            if (s.location) meta.push(`konum: ${s.location}`);
+            const action = s.recommendedAction
+              ? ` Öneri: ${s.recommendedAction}`
+              : "";
+            return `- ${SITUATION_LABEL[s.type]} (${meta.join(", ")})${
+              s.description ? ` — ${s.description}` : ""
+            }${action}`;
+          })
           .join("\n");
 
   return `Sen deneyimli bir belediye saha denetim uzmanısın. Aşağıdaki otomatik görüntü analizi (sokağın dört yönü tarandı) sonuçlarına dayanarak KAPSAMLI, profesyonel ve akıcı bir Türkçe saha raporu yaz.
@@ -70,15 +85,17 @@ Konum: ${ctx.address}
 Taranan yön sayısı: ${ctx.directionsScanned}
 Genel temizlik durumu: ${ctx.cleanliness}
 Kirlilik/yoğunluk skoru (0-100): ${ctx.densityScore}
+Güvenlik/aciliyet riski: ${RISK_LABEL[ctx.safetyRisk]}
 Önerilen ekip: ${ctx.recommendedTeam}
 Tespit edilen durumlar:
 ${sit}
 
-Rapor şu bölümleri içersin (başlıkları KISA tut, markdown kullanma):
-1. Genel değerlendirme (2-3 cümle).
-2. Öne çıkan bulgular (varsa madde madde).
-3. Önerilen aksiyon ve önceliklendirme (hangi ekip, ne kadar acil).
-Toplam 120-180 kelime. Abartma, gözlemlere sadık kal. İnsan, araç gibi normal kent ögelerini sorun olarak yorumlama.`;
+Rapor şu bölümleri içersin (her başlık tek satır, markdown/yıldız kullanma):
+1. Genel değerlendirme — bölgenin durumu, 2-3 cümle.
+2. Öne çıkan bulgular — varsa madde madde, hangi yönde ve ne kadar ciddi.
+3. Risk ve etki — güvenlik/halk sağlığı açısından kısa değerlendirme.
+4. Önerilen aksiyon ve önceliklendirme — hangi ekip, hangi sırayla, ne kadar acil.
+Toplam 160-230 kelime. Gözlemlere sadık kal, abartma. İnsan, araç gibi normal kent ögelerini sorun olarak yorumlama.`;
 }
 
 async function tryGemini(prompt: string): Promise<string | null> {
@@ -99,7 +116,7 @@ async function tryGemini(prompt: string): Promise<string | null> {
         headers,
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 600 },
+          generationConfig: { temperature: 0.4, maxOutputTokens: 900 },
         }),
       },
       8000,
@@ -131,7 +148,7 @@ async function tryHF(prompt: string): Promise<string | null> {
           model,
           messages: [{ role: "user", content: prompt }],
           temperature: 0.4,
-          max_tokens: 600,
+          max_tokens: 900,
         }),
       },
       20000,
@@ -153,7 +170,7 @@ function localReport(ctx: ReportContext): string {
   const items = ctx.situations
     .map((s) => `${SITUATION_LABEL[s.type]} (${SEVERITY_LABEL[s.severity]})`)
     .join(", ");
-  return `${ctx.address} bölgesinde yapılan dört yönlü analizde ${ctx.situations.length} durum tespit edildi: ${items}. Genel temizlik durumu "${ctx.cleanliness}", kirlilik skoru ${ctx.densityScore}/100. Önerilen aksiyon: ${ctx.recommendedTeam} bölgeye yönlendirilmeli; yüksek önem dereceli bulgular öncelikli ele alınmalıdır.`;
+  return `${ctx.address} bölgesinde yapılan dört yönlü analizde ${ctx.situations.length} durum tespit edildi: ${items}. Genel temizlik durumu "${ctx.cleanliness}", kirlilik skoru ${ctx.densityScore}/100, güvenlik/aciliyet riski ${RISK_LABEL[ctx.safetyRisk]}. Önerilen aksiyon: ${ctx.recommendedTeam} bölgeye yönlendirilmeli; yüksek önem dereceli bulgular öncelikli ele alınmalıdır.`;
 }
 
 /**

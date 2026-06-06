@@ -42,7 +42,14 @@ export type DetectedSituation = {
   confidence: number;
   description: string;
   direction: string;
+  /** Suggested concrete action for this specific finding (optional). */
+  recommendedAction?: string;
+  /** Where in the frame the issue appears (e.g. "kaldırım kenarı"). */
+  location?: string;
 };
+
+/** Overall safety risk inferred from the detected situations. */
+export type SafetyRisk = "dusuk" | "orta" | "yuksek";
 
 /** Dispatch status of a record. */
 export type DispatchStatus = "pending" | "assigned" | "resolved";
@@ -113,6 +120,8 @@ export type AnalysisResult = {
   analysisModel: "hf-vision" | "gemini" | "vision" | "object-detection";
   /** Detected field situations (litter / road damage / ...). */
   situations: DetectedSituation[];
+  /** Overall safety/urgency risk inferred from the situations. */
+  safetyRisk: SafetyRisk;
   /** Suggested municipal team based on the highest-severity situation. */
   recommendedTeam: string;
   /** Dispatch status. */

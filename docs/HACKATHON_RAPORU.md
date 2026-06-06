@@ -116,7 +116,7 @@ Adres → Geocoding → Street View (4 yön) → AI Görsel Analiz (durum tespit
 - **Veri minimizasyonu**: ham görüntüler kalıcı depolanmaz; yalnızca analiz
   sonuçları (skor, durumlar) saklanır.
 - **Güvenlik**: API anahtarları yalnızca sunucu tarafında; erişim JWT ile korunur.
-- Ayrıntılı [KVKK Aydınlatma Metni](web/src/app/kvkk/page.tsx) uygulama
+- Ayrıntılı [KVKK Aydınlatma Metni](../web/src/app/kvkk/page.tsx) uygulama
   içinde `/kvkk` sayfasında sunulur.
 
 ---

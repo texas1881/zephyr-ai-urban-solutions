@@ -6,6 +6,7 @@ import type {
   DetectedSituation,
   DirectionImage,
   LabeledCount,
+  SafetyRisk,
 } from "@/types/api";
 import { geocodeAddress } from "@/services/geocodeService";
 import {
@@ -53,6 +54,13 @@ function flatten(items: LabeledCount[]): DetectedObject[] {
     for (let i = 0; i < it.count; i++) out.push({ label: it.label, score: 1 });
   }
   return out;
+}
+
+/** Derives an overall safety risk band from a 0-100 density score. */
+function riskFromScore(score: number): SafetyRisk {
+  if (score >= 60) return "yuksek";
+  if (score >= 30) return "orta";
+  return "dusuk";
 }
 
 /** Groups detected situations into labelled counts for compact display. */
@@ -153,9 +161,10 @@ export async function GET(req: NextRequest) {
       const litterItems = situationsToItems(sit.situations);
       const recommendedTeam = recommendTeam(sit.situations);
       const assessment =
-        sit.situations.length === 0
+        sit.summary ||
+        (sit.situations.length === 0
           ? `${finalAddress} bölgesinin dört yönünde belirgin çevresel sorun tespit edilmedi; bölge temiz görünüyor.`
-          : `${finalAddress} bölgesinde ${sit.situations.length} durum tespit edildi. Önerilen ekip: ${recommendedTeam}.`;
+          : `${finalAddress} bölgesinde ${sit.situations.length} durum tespit edildi. Önerilen ekip: ${recommendedTeam}.`);
       return {
         address: finalAddress,
         lat,
@@ -177,6 +186,7 @@ export async function GET(req: NextRequest) {
         aiAssessment: true,
         analysisModel: "hf-vision",
         situations: sit.situations,
+        safetyRisk: sit.safetyRisk,
         recommendedTeam,
         status: "pending",
         assignedTeam: "",
@@ -221,6 +231,7 @@ export async function GET(req: NextRequest) {
           aiAssessment: true,
           analysisModel: "vision",
           situations: [],
+          safetyRisk: riskFromScore(vision.densityScore),
           recommendedTeam:
             vision.litterItems.length > 0 ? "Temizlik Ekibi" : "—",
           status: "pending",
@@ -271,6 +282,7 @@ export async function GET(req: NextRequest) {
           aiAssessment: false,
           analysisModel: "object-detection",
           situations: [],
+          safetyRisk: riskFromScore(summary.densityScore),
           recommendedTeam: litterItems.length > 0 ? "Temizlik Ekibi" : "—",
           status: "pending",
           assignedTeam: "",
@@ -284,6 +296,7 @@ export async function GET(req: NextRequest) {
       address: result.address,
       cleanliness: result.cleanliness,
       densityScore: result.densityScore,
+      safetyRisk: result.safetyRisk,
       recommendedTeam: result.recommendedTeam,
       directionsScanned: result.directionsScanned,
       situations: result.situations,

@@ -13,7 +13,9 @@ import {
 } from "@/services/situationAnalysis";
 
 const HF_ROUTER = "https://router.huggingface.co/v1/chat/completions";
-const DEFAULT_MODEL = "Qwen/Qwen3-VL-8B-Instruct";
+// Larger, newer multimodal model for more precise/sensitive detection.
+// Overridable via HF_VISION_MODEL.
+const DEFAULT_MODEL = "Qwen/Qwen3-VL-30B-A3B-Instruct";
 
 export type DirectionImageInput = {
   /** ön | arka | sağ | sol */
@@ -55,7 +57,7 @@ export async function analyzeSituationsWithHFVision(
 
   // Abort if the provider hangs, so the request can fall back instead of stalling.
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 35000);
+  const timer = setTimeout(() => ctrl.abort(), 50000);
   let res: Response;
   try {
     res = await fetch(HF_ROUTER, {
@@ -67,8 +69,9 @@ export async function analyzeSituationsWithHFVision(
       body: JSON.stringify({
         model,
         messages: [{ role: "user", content }],
-        temperature: 0.2,
-        max_tokens: 1024,
+        temperature: 0.15,
+        top_p: 0.9,
+        max_tokens: 2048,
       }),
       signal: ctrl.signal,
     });

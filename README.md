@@ -4,7 +4,12 @@
 
 Zephyr, belediyelerin saha denetim ve temizlik operasyonlarını veriye dayalı hale getirir. Model eğitmeye gerek kalmadan, **Hugging Face** üzerindeki hazır **çok-kipli (multimodal) görsel-dil modeli** (`Qwen/Qwen3-VL-8B-Instruct`) ile sokağın dört yönü incelenir; çöp, aşırı kirlilik, dolu çöp kutusu, yol hasarı, moloz ve grafiti gibi durumlar **önem ve güven skoruyla** tespit edilir, sorumlu **ekip otomatik önerilir** ve **Gemini** ile kapsamlı bir saha raporu üretilir. Ayrıca **interaktif 360° Street View** ve **JWT tabanlı güvenli oturum** sunar.
 
-> Ayrıntılı teslim raporu için bkz. [`HACKATHON_RAPORU.md`](HACKATHON_RAPORU.md).
+> 📄 **Belgeler** (`docs/`):
+> [Proje Raporu](docs/PROJE_RAPORU.md) ·
+> [Mimari & Klasör Yapısı](docs/MIMARI.md) ·
+> [Hackathon Raporu](docs/HACKATHON_RAPORU.md) ·
+> [KVKK Veri İmha Belgesi](docs/KVKK_VERI_IMHA_BELGESI.md) ·
+> [Sunum (.ppsx)](docs/Zephyr.ppsx)
 
 Sistem tamamen **KVKK uyumludur**: yalnızca kamusal alandaki cansız objeler (çöp, atık, kirli alanlar) analiz edilir. Yüz tanıma, plaka okuma veya kişi/araç takibi **yapılmaz**.
 

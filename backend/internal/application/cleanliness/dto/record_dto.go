@@ -15,6 +15,7 @@ type CreateRecordRequest struct {
 	StreetViewURL   string                 `json:"streetViewUrl"`
 	Objects         []model.DetectedObject `json:"objects"`
 	Situations      []model.Situation      `json:"situations"`
+	SafetyRisk      string                 `json:"safetyRisk"`
 	RecommendedTeam string                 `json:"recommendedTeam"`
 	Status          string                 `json:"status"`
 	AssignedTeam    string                 `json:"assignedTeam"`
@@ -38,6 +39,7 @@ func (r CreateRecordRequest) ToModel() *model.Record {
 		StreetViewURL:   r.StreetViewURL,
 		Objects:         r.Objects,
 		Situations:      r.Situations,
+		SafetyRisk:      r.SafetyRisk,
 		RecommendedTeam: r.RecommendedTeam,
 		Status:          status,
 		AssignedTeam:    r.AssignedTeam,

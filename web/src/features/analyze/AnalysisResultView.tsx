@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { useState } from "react";
-import type { AnalysisResult } from "@/types/api";
+import type { AnalysisResult, SafetyRisk } from "@/types/api";
 import { priorityColor, priorityLabel } from "@/features/detections/priority";
 import {
   SEVERITY_LABEL,
@@ -12,6 +12,18 @@ import {
 import { DensityGauge } from "./DensityGauge";
 
 const EMBED_KEY = process.env.NEXT_PUBLIC_MAPS_EMBED_KEY;
+
+const RISK_LABEL: Record<SafetyRisk, string> = {
+  dusuk: "Düşük risk",
+  orta: "Orta risk",
+  yuksek: "Yüksek risk",
+};
+
+const RISK_COLOR: Record<SafetyRisk, string> = {
+  dusuk: "bg-white/10 text-emerald-300 ring-emerald-400/30",
+  orta: "bg-white/10 text-amber-300 ring-amber-400/30",
+  yuksek: "bg-white/10 text-red-300 ring-red-400/30",
+};
 
 type Props = {
   result: AnalysisResult;
@@ -131,10 +143,19 @@ export function AnalysisResultView({
         <div className="flex flex-wrap items-center gap-6">
           <DensityGauge score={result.densityScore} />
           <div className="space-y-1.5 text-sm">
-            <p className="text-foreground">
-              Temizlik durumu:{" "}
-              <span className="font-semibold">{result.cleanliness}</span>
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-foreground">
+                Temizlik durumu:{" "}
+                <span className="font-semibold">{result.cleanliness}</span>
+              </p>
+              {result.safetyRisk && (
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${RISK_COLOR[result.safetyRisk]}`}
+                >
+                  {RISK_LABEL[result.safetyRisk]}
+                </span>
+              )}
+            </div>
             <p className="text-foreground">
               <span className="text-2xl font-semibold tabular-nums">
                 {result.situations.length || result.litterCount}
@@ -156,7 +177,7 @@ export function AnalysisResultView({
                 className="glass flex items-start justify-between gap-3 rounded-xl p-3"
               >
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-medium text-foreground">
                       {SITUATION_LABEL[s.type]}
                     </span>
@@ -165,9 +186,20 @@ export function AnalysisResultView({
                     >
                       {SEVERITY_LABEL[s.severity]}
                     </span>
+                    {s.location && (
+                      <span className="rounded-full border border-line bg-surface px-2 py-0.5 text-[10px] text-muted">
+                        {s.location}
+                      </span>
+                    )}
                   </div>
                   {s.description && (
                     <p className="mt-0.5 text-xs text-muted">{s.description}</p>
+                  )}
+                  {s.recommendedAction && (
+                    <p className="mt-1 text-xs text-foreground/80">
+                      <span className="text-muted">Öneri: </span>
+                      {s.recommendedAction}
+                    </p>
                   )}
                 </div>
                 <div className="shrink-0 text-right">
