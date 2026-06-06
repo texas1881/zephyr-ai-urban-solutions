@@ -34,6 +34,11 @@ import {
 } from "@/features/analyze/situations";
 import { scoreToPriority } from "@/features/detections/priority";
 
+// Uses Buffer + external AI calls — force Node runtime and give the function
+// enough headroom on Vercel to finish image fetch + inference + report.
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 type FetchedDirection = {
   label: string;
   heading: number;

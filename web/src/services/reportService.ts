@@ -11,6 +11,21 @@ import { SITUATION_LABEL, SEVERITY_LABEL } from "@/features/analyze/situations";
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const HF_ROUTER = "https://router.huggingface.co/v1/chat/completions";
 
+/** fetch with an abort timeout so a hanging provider can't stall the request. */
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  ms: number,
+): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export type ReportContext = {
   address: string;
   cleanliness: string;
@@ -77,14 +92,18 @@ async function tryGemini(prompt: string): Promise<string | null> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (!isApiKey) headers.Authorization = `Bearer ${key}`;
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.4, maxOutputTokens: 600 },
-      }),
-    });
+    const res = await fetchWithTimeout(
+      url,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 600 },
+        }),
+      },
+      8000,
+    );
     if (!res.ok) return null;
     const body = await res.json();
     const text: string | undefined =
@@ -100,19 +119,23 @@ async function tryHF(prompt: string): Promise<string | null> {
   if (!token) return null;
   const model = process.env.HF_REPORT_MODEL || "Qwen/Qwen3-VL-8B-Instruct";
   try {
-    const res = await fetch(HF_ROUTER, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
+    const res = await fetchWithTimeout(
+      HF_ROUTER,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.4,
+          max_tokens: 600,
+        }),
       },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.4,
-        max_tokens: 600,
-      }),
-    });
+      20000,
+    );
     if (!res.ok) return null;
     const body = await res.json();
     const text: string | undefined = body?.choices?.[0]?.message?.content;

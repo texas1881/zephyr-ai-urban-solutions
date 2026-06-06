@@ -53,19 +53,28 @@ export async function analyzeSituationsWithHFVision(
     });
   }
 
-  const res = await fetch(HF_ROUTER, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "user", content }],
-      temperature: 0.2,
-      max_tokens: 1024,
-    }),
-  });
+  // Abort if the provider hangs, so the request can fall back instead of stalling.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 35000);
+  let res: Response;
+  try {
+    res = await fetch(HF_ROUTER, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content }],
+        temperature: 0.2,
+        max_tokens: 1024,
+      }),
+      signal: ctrl.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!res.ok) {
     throw new Error(`HF vision ${res.status}: ${await res.text()}`);
