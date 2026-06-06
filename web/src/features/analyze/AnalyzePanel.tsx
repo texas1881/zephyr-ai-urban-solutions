@@ -105,8 +105,7 @@ export function AnalyzePanel({ onAnalyzed, onDispatch }: Props) {
 
       {loading && !result && (
         <div className="glass animate-pulse rounded-2xl p-6 text-sm text-muted">
-          Sokağın dört yönü alınıyor ve Gemini görsel yapay zekâ ile analiz
-          ediliyor…
+          Sokağın dört yönü alınıyor ve yapay zekâ ile analiz ediliyor…
         </div>
       )}
 

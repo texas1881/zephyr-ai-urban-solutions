@@ -2,7 +2,9 @@
 
 > Belediyeler için yapay zekâ destekli kentsel temizlik analizi platformu — **Cursor Hackathon 2026: AI-Driven Kentsel Çözümler** için geliştirildi.
 
-Zephyr, belediyelerin çevre temizliği operasyonlarını iyileştirmelerine yardımcı olur. Model eğitmeye gerek kalmadan, **Hugging Face Inference API** üzerindeki hazır (önceden eğitilmiş) bir nesne tespiti modeli kullanılarak sokak görüntülerindeki yerde bulunan çöp ve çevresel kirlilik tespit edilir, **çöp yoğunluğu** hesaplanır, bir **temizlik önceliği haritası** oluşturulur ve belediyelerin temizlik operasyonlarını daha verimli planlaması sağlanır.
+Zephyr, belediyelerin saha denetim ve temizlik operasyonlarını veriye dayalı hale getirir. Model eğitmeye gerek kalmadan, **Hugging Face** üzerindeki hazır **çok-kipli (multimodal) görsel-dil modeli** (`Qwen/Qwen3-VL-8B-Instruct`) ile sokağın dört yönü incelenir; çöp, aşırı kirlilik, dolu çöp kutusu, yol hasarı, moloz ve grafiti gibi durumlar **önem ve güven skoruyla** tespit edilir, sorumlu **ekip otomatik önerilir** ve **Gemini** ile kapsamlı bir saha raporu üretilir. Ayrıca **interaktif 360° Street View** ve **JWT tabanlı güvenli oturum** sunar.
+
+> Ayrıntılı teslim raporu için bkz. [`HACKATHON_RAPORU.md`](HACKATHON_RAPORU.md).
 
 Sistem tamamen **KVKK uyumludur**: yalnızca kamusal alandaki cansız objeler (çöp, atık, kirli alanlar) analiz edilir. Yüz tanıma, plaka okuma veya kişi/araç takibi **yapılmaz**.
 
@@ -26,11 +28,13 @@ Zephyr, kamusal sokak görüntülerini uygulanabilir temizlik önceliklerine dö
 | Katman | Teknoloji |
 |--------|-----------|
 | Web | Next.js + TypeScript |
-| Mobil | Expo |
 | Backend | Go (Golang) — **masterfabric-go** mimarisi (zorunlu) |
-| AI / CV | Hugging Face Inference API (`facebook/detr-resnet-50`, nesne tespiti) |
-| Veri kaynağı | Google Street View API |
-| Hosting | Vercel (web), Render.com (backend) |
+| Kimlik | masterfabric-go IAM — JWT + RBAC + Postgres |
+| AI — Tespit | Hugging Face çok-kipli model `Qwen/Qwen3-VL-8B-Instruct` (ücretsiz) |
+| AI — Yorum | Gemini (birincil) → HF metin → yerel özet |
+| Yedek CV | Google Cloud Vision → COCO (`facebook/detr-resnet-50`) |
+| Veri kaynağı | Google Street View + Geocoding + Maps Embed (360°) |
+| Hosting | Vercel (web), Render.com (backend + Postgres) |
 
 ## Mimari
 
@@ -175,9 +179,11 @@ tanımlı değilse veriyi tarayıcıda (localStorage) biriktirir.
 | Değişken | Açıklama |
 |----------|----------|
 | `NEXT_PUBLIC_BACKEND_URL` | `https://zephyr-backend-2mtm.onrender.com` |
-| `GEMINI_API_KEY` | Google AI Studio `AIza...` anahtarı |
-| `GOOGLE_STREET_VIEW_API_KEY` | Street View + Geocoding |
-| `HUGGINGFACE_API_TOKEN` | Yedek nesne tespiti |
+| `HUGGINGFACE_API_TOKEN` | **Birincil** görsel analiz (HF vision) + rapor yedeği |
+| `HF_VISION_MODEL` | Tespit modeli (varsayılan `Qwen/Qwen3-VL-8B-Instruct`) |
+| `GEMINI_API_KEY` | Kapsamlı rapor (yorum amaçlı) — Google AI Studio `AIza...` |
+| `GOOGLE_STREET_VIEW_API_KEY` | Street View + Geocoding (sunucu tarafı) |
+| `NEXT_PUBLIC_MAPS_EMBED_KEY` | İnteraktif 360° Street View (Maps Embed API) |
 
 3. `NEXT_PUBLIC_BACKEND_URL` dolu olduğunda panel **login zorunlu** olur; kayıtlar JWT ile backend'e senkronlanır.
 4. Boş bırakılırsa demo modu (localStorage, auth kapalı) devam eder.

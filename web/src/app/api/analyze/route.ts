@@ -22,9 +22,11 @@ import {
   type VisionImageInput,
 } from "@/services/visionService";
 import {
-  analyzeSituationsWithGemini,
+  analyzeSituationsWithHFVision,
   type DirectionImageInput,
-} from "@/services/geminiVisionService";
+} from "@/services/hfVisionService";
+import type { SituationAnalysis } from "@/services/situationAnalysis";
+import { generateReport } from "@/services/reportService";
 import { groupLabeled } from "@/features/analyze/labels";
 import {
   recommendTeam,
@@ -60,9 +62,10 @@ function situationsToItems(situations: DetectedSituation[]): LabeledCount[] {
 
 /**
  * Analyzes a location by scanning four Street View directions
- * (front/right/back/left). Primary engine is the Gemini multimodal model
- * (precise situation detection: litter / road damage / extreme dirt); falls
- * back to Google Vision, then COCO object detection.
+ * (front/right/back/left). Detection engine is a free Hugging Face multimodal
+ * model (Qwen-VL) for precise situation detection (litter / road damage /
+ * extreme dirt); falls back to Google Vision, then COCO object detection.
+ * A comprehensive AI report is then generated separately (Gemini → HF → local).
  *   GET /api/analyze?address=Başakşehir
  *   GET /api/analyze?lat=41.09&lng=28.80
  */
@@ -133,48 +136,55 @@ export async function GET(req: NextRequest) {
     const directionsScanned = fetched.length || SCAN_DIRECTIONS.length;
     const baseUrl = `/api/streetview?lat=${lat}&lng=${lng}`;
 
-    let result: AnalysisResult;
+    const input: DirectionImageInput[] = fetched.map((d) => ({
+      label: d.label,
+      heading: d.heading,
+      base64: Buffer.from(d.bytes).toString("base64"),
+      mimeType: d.mimeType,
+    }));
 
-    // --- Primary: Gemini multimodal situation detection ---
-    try {
-      const input: DirectionImageInput[] = fetched.map((d) => ({
-        label: d.label,
-        heading: d.heading,
-        base64: Buffer.from(d.bytes).toString("base64"),
-        mimeType: d.mimeType,
-      }));
-
-      const gemini = await analyzeSituationsWithGemini(finalAddress, input);
-      const litterItems = situationsToItems(gemini.situations);
-      const recommendedTeam = recommendTeam(gemini.situations);
+    // Builds an AnalysisResult from a multimodal situation report (HF vision).
+    const buildFromSituations = (sit: SituationAnalysis): AnalysisResult => {
+      const litterItems = situationsToItems(sit.situations);
+      const recommendedTeam = recommendTeam(sit.situations);
       const assessment =
-        gemini.situations.length === 0
+        sit.situations.length === 0
           ? `${finalAddress} bölgesinin dört yönünde belirgin çevresel sorun tespit edilmedi; bölge temiz görünüyor.`
-          : `${finalAddress} bölgesinde ${gemini.situations.length} durum tespit edildi. Önerilen ekip: ${recommendedTeam}.`;
-
-      result = {
+          : `${finalAddress} bölgesinde ${sit.situations.length} durum tespit edildi. Önerilen ekip: ${recommendedTeam}.`;
+      return {
         address: finalAddress,
         lat,
         lng,
-        litterCount: gemini.situations.length,
-        densityScore: gemini.densityScore,
-        priority: scoreToPriority(gemini.densityScore),
+        litterCount: sit.situations.length,
+        densityScore: sit.densityScore,
+        priority: scoreToPriority(sit.densityScore),
         streetViewUrl: baseUrl,
         directionImages,
         litterItems,
         contextItems: [],
         objects: flatten(litterItems),
         directionsScanned,
-        cleanliness: gemini.cleanliness,
+        cleanliness: sit.cleanliness,
         assessment,
+        aiReport: "",
+        reportEngine: "local",
         cityOrder: "",
         aiAssessment: true,
-        analysisModel: "gemini",
-        situations: gemini.situations,
+        analysisModel: "hf-vision",
+        situations: sit.situations,
         recommendedTeam,
         status: "pending",
         assignedTeam: "",
       };
+    };
+
+    let result: AnalysisResult;
+
+    // --- Primary: Hugging Face multimodal (Qwen-VL, free) ---
+    try {
+      result = buildFromSituations(
+        await analyzeSituationsWithHFVision(finalAddress, input),
+      );
     } catch {
       // --- Fallback 1: Google Cloud Vision ---
       try {
@@ -200,6 +210,8 @@ export async function GET(req: NextRequest) {
           directionsScanned,
           cleanliness: vision.cleanliness,
           assessment: vision.comment,
+          aiReport: "",
+          reportEngine: "local",
           cityOrder: vision.cityOrder,
           aiAssessment: true,
           analysisModel: "vision",
@@ -210,7 +222,7 @@ export async function GET(req: NextRequest) {
           assignedTeam: "",
         };
       } catch {
-        // --- Fallback 2: COCO object detection ---
+        // --- Fallback 3: COCO object detection ---
         const perDirection = await Promise.all(
           fetched.map((d) => detectObjects(d.bytes)),
         );
@@ -248,6 +260,8 @@ export async function GET(req: NextRequest) {
           directionsScanned,
           cleanliness,
           assessment,
+          aiReport: "",
+          reportEngine: "local",
           cityOrder: "",
           aiAssessment: false,
           analysisModel: "object-detection",
@@ -258,6 +272,19 @@ export async function GET(req: NextRequest) {
         };
       }
     }
+
+    // Comprehensive AI commentary (Gemini → HF → local). Detection is already
+    // done above; this only adds the human-readable report and never throws.
+    const generated = await generateReport({
+      address: result.address,
+      cleanliness: result.cleanliness,
+      densityScore: result.densityScore,
+      recommendedTeam: result.recommendedTeam,
+      directionsScanned: result.directionsScanned,
+      situations: result.situations,
+    });
+    result.aiReport = generated.report;
+    result.reportEngine = generated.engine;
 
     const body: ApiResponse<AnalysisResult> = { success: true, data: result };
     return NextResponse.json(body);

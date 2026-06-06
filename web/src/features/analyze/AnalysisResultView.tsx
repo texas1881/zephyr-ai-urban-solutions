@@ -1,6 +1,7 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
+import { useState } from "react";
 import type { AnalysisResult } from "@/types/api";
 import { priorityColor, priorityLabel } from "@/features/detections/priority";
 import {
@@ -9,6 +10,8 @@ import {
   severityColor,
 } from "./situations";
 import { DensityGauge } from "./DensityGauge";
+
+const EMBED_KEY = process.env.NEXT_PUBLIC_MAPS_EMBED_KEY;
 
 type Props = {
   result: AnalysisResult;
@@ -23,35 +26,86 @@ export function AnalysisResultView({
   dispatchedTeam = "",
   onDispatch,
 }: Props) {
+  const [pano, setPano] = useState(false);
+
   const modelLabel =
-    result.analysisModel === "gemini"
-      ? "Gemini görsel analiz"
-      : result.analysisModel === "vision"
-        ? "Google Vision"
-        : "Nesne tespiti";
+    result.analysisModel === "hf-vision"
+      ? "Yapay zekâ görsel analizi"
+      : result.analysisModel === "gemini"
+        ? "Yapay zekâ görsel analizi"
+        : result.analysisModel === "vision"
+          ? "Google Vision"
+          : "Nesne tespiti";
+
+  const reportLabel =
+    result.reportEngine === "gemini"
+      ? "Gemini yorum"
+      : result.reportEngine === "hf"
+        ? "Yapay zekâ yorum"
+        : "Otomatik özet";
 
   const canDispatch =
     !dispatchedTeam &&
     result.recommendedTeam !== "—" &&
     typeof onDispatch === "function";
 
+  const panoUrl = EMBED_KEY
+    ? `https://www.google.com/maps/embed/v1/streetview?key=${EMBED_KEY}&location=${result.lat},${result.lng}&heading=0&pitch=0&fov=90`
+    : null;
+
   return (
     <div className="glass-strong overflow-hidden rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-      {/* 4 yön görselleri */}
-      <div className="grid grid-cols-2 gap-px bg-white/10 sm:grid-cols-4">
-        {result.directionImages.map((dir) => (
-          <div key={dir.heading} className="relative aspect-[4/3] bg-black">
-            <img
-              src={dir.url}
-              alt={`${result.address} — ${dir.label}`}
-              className="h-full w-full object-cover"
-            />
-            <span className="absolute left-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white backdrop-blur">
-              {dir.label}
-            </span>
-          </div>
-        ))}
-      </div>
+      {/* Görsel / 360° geçişi */}
+      {panoUrl && (
+        <div className="flex items-center justify-end gap-1 border-b border-white/10 bg-black/40 px-3 py-2">
+          <button
+            onClick={() => setPano(false)}
+            className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
+              !pano
+                ? "bg-white text-black"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            4 Yön
+          </button>
+          <button
+            onClick={() => setPano(true)}
+            className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
+              pano ? "bg-white text-black" : "text-muted hover:text-foreground"
+            }`}
+          >
+            360° Gezin
+          </button>
+        </div>
+      )}
+
+      {pano && panoUrl ? (
+        <div className="relative aspect-video w-full bg-black">
+          <iframe
+            title={`${result.address} 360° Street View`}
+            src={panoUrl}
+            className="h-full w-full border-0"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            allowFullScreen
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-px bg-white/10 sm:grid-cols-4">
+          {result.directionImages.map((dir) => (
+            <div key={dir.heading} className="relative aspect-[4/3] bg-black">
+              <img
+                src={dir.url}
+                alt={`${result.address} — ${dir.label}`}
+                className="h-full w-full object-cover"
+              />
+              <span className="absolute left-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white backdrop-blur">
+                {dir.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="flex flex-col gap-6 p-6">
         <div>
@@ -170,6 +224,23 @@ export function AnalysisResultView({
             {result.assessment}
           </p>
         </div>
+
+        {/* Kapsamlı AI raporu */}
+        {result.aiReport && (
+          <div className="glass rounded-2xl p-4">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-xs font-semibold text-foreground">
+                Kapsamlı AI Raporu
+              </span>
+              <span className="rounded-full border border-line bg-surface px-1.5 py-0.5 text-[10px] text-muted">
+                {reportLabel}
+              </span>
+            </div>
+            <p className="whitespace-pre-line text-sm leading-6 text-foreground/90">
+              {result.aiReport}
+            </p>
+          </div>
+        )}
 
         {result.contextItems.length > 0 && (
           <div>
