@@ -17,9 +17,11 @@ import (
 	infraAuth "github.com/masterfabric-go/masterfabric/internal/infrastructure/auth"
 	apimgmtHandler "github.com/masterfabric-go/masterfabric/internal/infrastructure/http/handler/apimanagement"
 	auditHandler "github.com/masterfabric-go/masterfabric/internal/infrastructure/http/handler/audit"
+	cleanlinessHandler "github.com/masterfabric-go/masterfabric/internal/infrastructure/http/handler/cleanliness"
 	iamHandler "github.com/masterfabric-go/masterfabric/internal/infrastructure/http/handler/iam"
 	tenantHandler "github.com/masterfabric-go/masterfabric/internal/infrastructure/http/handler/tenant"
 	"github.com/masterfabric-go/masterfabric/internal/infrastructure/http/router"
+	memCleanliness "github.com/masterfabric-go/masterfabric/internal/infrastructure/memory/cleanliness"
 	infraKafka "github.com/masterfabric-go/masterfabric/internal/infrastructure/kafka"
 	pgApimgmt "github.com/masterfabric-go/masterfabric/internal/infrastructure/postgres/apimanagement"
 	pgAudit "github.com/masterfabric-go/masterfabric/internal/infrastructure/postgres/audit"
@@ -28,6 +30,7 @@ import (
 
 	// Application use cases
 	apimgmtUC "github.com/masterfabric-go/masterfabric/internal/application/apimanagement/usecase"
+	cleanlinessUC "github.com/masterfabric-go/masterfabric/internal/application/cleanliness/usecase"
 	iamUC "github.com/masterfabric-go/masterfabric/internal/application/iam/usecase"
 	tenantUC "github.com/masterfabric-go/masterfabric/internal/application/tenant/usecase"
 
@@ -197,8 +200,19 @@ func buildDependencies(
 		Redis:  redisClient,
 	}
 
+	// Cleanliness context uses an in-memory store, so it works with or without
+	// a database (data-accumulation API for the Zephyr web app).
+	cleanlinessRepo := memCleanliness.NewMemoryRecordRepository()
+	deps.CleanlinessHandler = cleanlinessHandler.NewHandler(
+		cleanlinessUC.NewSaveRecordUseCase(cleanlinessRepo),
+		cleanlinessUC.NewListRecordsUseCase(cleanlinessRepo),
+		cleanlinessUC.NewGetStatsUseCase(cleanlinessRepo),
+		cleanlinessUC.NewDeleteRecordUseCase(cleanlinessRepo),
+		cleanlinessUC.NewClearRecordsUseCase(cleanlinessRepo),
+	)
+
 	if db == nil {
-		log.Warn("database not available, API endpoints will not work")
+		log.Warn("database not available, only in-memory endpoints (cleanliness) will work")
 		return deps
 	}
 

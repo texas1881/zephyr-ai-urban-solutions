@@ -1,33 +1,46 @@
-// Command zephyr is a lightweight entrypoint for the Zephyr records API.
-// It reuses the masterfabric-go stack (chi router, clean-architecture
-// layering) but uses an in-memory store so the data-accumulation backend
-// runs without Postgres/Docker for the hackathon demo.
+// Command zephyr is a lightweight entrypoint that runs ONLY the Cleanliness
+// data-accumulation API from the masterfabric-go stack, backed by the
+// in-memory repository. It reuses the same domain/application/infrastructure
+// layers as the full server (cmd/server) but boots without Postgres/Redis,
+// which is convenient for the hackathon demo and frontend development.
 package main
 
 import (
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/masterfabric-go/masterfabric/internal/zephyr/store"
-	"github.com/masterfabric-go/masterfabric/internal/zephyr/transport/httpapi"
+
+	cleanlinessUC "github.com/masterfabric-go/masterfabric/internal/application/cleanliness/usecase"
+	cleanlinessHandler "github.com/masterfabric-go/masterfabric/internal/infrastructure/http/handler/cleanliness"
+	memCleanliness "github.com/masterfabric-go/masterfabric/internal/infrastructure/memory/cleanliness"
+	"github.com/masterfabric-go/masterfabric/internal/shared/middleware"
 )
 
 func main() {
-	repo := store.NewMemory()
-	handler := httpapi.NewHandler(repo)
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	// Wire the Cleanliness slice: in-memory repo -> use cases -> HTTP handler.
+	repo := memCleanliness.NewMemoryRecordRepository()
+	handler := cleanlinessHandler.NewHandler(
+		cleanlinessUC.NewSaveRecordUseCase(repo),
+		cleanlinessUC.NewListRecordsUseCase(repo),
+		cleanlinessUC.NewGetStatsUseCase(repo),
+		cleanlinessUC.NewDeleteRecordUseCase(repo),
+		cleanlinessUC.NewClearRecordsUseCase(repo),
+	)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	r.Use(middleware.Logging(logger))
+	r.Use(middleware.Recoverer(logger))
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: false,
 	}))
@@ -36,9 +49,9 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"alive"}`))
 	})
-	r.Mount("/api/v1", handler.Routes())
+	r.Mount("/api/v1/cleanliness", handler.Routes())
 
-	port := os.Getenv("ZEPHYR_PORT")
+	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
@@ -49,7 +62,7 @@ func main() {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	log.Printf("Zephyr records API listening on :%s", port)
+	log.Printf("Zephyr Cleanliness API listening on :%s", port)
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatalf("server error: %v", err)
 	}

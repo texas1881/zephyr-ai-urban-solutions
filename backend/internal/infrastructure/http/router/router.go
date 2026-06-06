@@ -14,6 +14,7 @@ import (
 	// Handlers
 	apimgmtHandler "github.com/masterfabric-go/masterfabric/internal/infrastructure/http/handler/apimanagement"
 	auditHandler "github.com/masterfabric-go/masterfabric/internal/infrastructure/http/handler/audit"
+	cleanlinessHandler "github.com/masterfabric-go/masterfabric/internal/infrastructure/http/handler/cleanliness"
 	"github.com/masterfabric-go/masterfabric/internal/infrastructure/http/handler/health"
 	iamHandler "github.com/masterfabric-go/masterfabric/internal/infrastructure/http/handler/iam"
 	tenantHandler "github.com/masterfabric-go/masterfabric/internal/infrastructure/http/handler/tenant"
@@ -38,10 +39,11 @@ type Dependencies struct {
 	RBACService iamService.RBACService
 
 	// Handlers
-	IAMHandler    *iamHandler.Handler
-	TenantHandler *tenantHandler.Handler
-	APIMgmtHandler *apimgmtHandler.Handler
-	AuditHandler  *auditHandler.Handler
+	IAMHandler         *iamHandler.Handler
+	TenantHandler      *tenantHandler.Handler
+	APIMgmtHandler     *apimgmtHandler.Handler
+	AuditHandler       *auditHandler.Handler
+	CleanlinessHandler *cleanlinessHandler.Handler
 
 	// Gateway
 	GatewayPipeline *gateway.Pipeline
@@ -85,6 +87,11 @@ func New(deps Dependencies) *chi.Mux {
 				r.Post("/login", deps.IAMHandler.Login)
 			}
 		})
+
+		// Cleanliness data-accumulation API (public for the demo web app).
+		if deps.CleanlinessHandler != nil {
+			r.Mount("/cleanliness", deps.CleanlinessHandler.Routes())
+		}
 
 		// Protected routes (require JWT)
 		r.Group(func(r chi.Router) {
