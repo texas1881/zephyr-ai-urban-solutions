@@ -1,9 +1,12 @@
 "use client";
 
+import { motion } from "framer-motion";
+import type { LucideIcon } from "lucide-react";
+
 export type NavItem = {
   id: string;
   label: string;
-  icon?: string;
+  icon?: LucideIcon;
 };
 
 type Props = {
@@ -13,31 +16,17 @@ type Props = {
 };
 
 /**
- * "Dynamic island" style segmented navigation with a sliding active pill.
- * Switches between dashboard modules without a page reload.
+ * "Dynamic island" style segmented navigation. The active pill slides between
+ * items using a shared framer-motion layout animation (spring), and each item
+ * renders a real lucide SVG icon.
  */
 export function DynamicNav({ items, active, onChange }: Props) {
-  const activeIndex = Math.max(
-    0,
-    items.findIndex((i) => i.id === active),
-  );
-  const widthPct = 100 / items.length;
-
   return (
     <div className="glass-strong fixed left-1/2 top-4 z-50 w-fit -translate-x-1/2 rounded-full p-1 shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
-      <div
-        className="relative grid"
-        style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0,1fr))` }}
-      >
-        <div
-          className="absolute inset-y-0 rounded-full bg-white shadow-[0_2px_10px_rgba(255,255,255,0.25)] transition-transform duration-300 ease-out"
-          style={{
-            width: `${widthPct}%`,
-            transform: `translateX(${activeIndex * 100}%)`,
-          }}
-        />
+      <div className="relative flex">
         {items.map((item) => {
           const isActive = item.id === active;
+          const Icon = item.icon;
           return (
             <button
               key={item.id}
@@ -46,7 +35,14 @@ export function DynamicNav({ items, active, onChange }: Props) {
                 isActive ? "text-black" : "text-muted hover:text-foreground"
               }`}
             >
-              {item.icon && <span className="text-xs">{item.icon}</span>}
+              {isActive && (
+                <motion.span
+                  layoutId="nav-pill"
+                  className="absolute inset-0 -z-10 rounded-full bg-white shadow-[0_2px_10px_rgba(255,255,255,0.25)]"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+              {Icon && <Icon size={15} strokeWidth={2.2} />}
               {item.label}
             </button>
           );

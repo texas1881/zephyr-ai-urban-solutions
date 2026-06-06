@@ -2,12 +2,32 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { useState } from "react";
+import { motion } from "framer-motion";
+import {
+  Compass,
+  Construction,
+  Droplets,
+  FileText,
+  Grid2x2,
+  type LucideIcon,
+  Send,
+  ShieldAlert,
+  ShieldCheck,
+  Signpost,
+  Sparkles,
+  Sprout,
+  SprayCan,
+  TrafficCone,
+  Trash2,
+  Truck,
+} from "lucide-react";
 import type { AnalysisResult, SafetyRisk } from "@/types/api";
 import { priorityColor, priorityLabel } from "@/features/detections/priority";
 import {
   SEVERITY_LABEL,
   SITUATION_LABEL,
   severityColor,
+  type SituationType,
 } from "./situations";
 import { DensityGauge } from "./DensityGauge";
 
@@ -23,6 +43,21 @@ const RISK_COLOR: Record<SafetyRisk, string> = {
   dusuk: "bg-white/10 text-emerald-300 ring-emerald-400/30",
   orta: "bg-white/10 text-amber-300 ring-amber-400/30",
   yuksek: "bg-white/10 text-red-300 ring-red-400/30",
+};
+
+/** Real SVG icon per situation type (lucide). */
+const SITUATION_ICON: Record<SituationType, LucideIcon> = {
+  temiz: ShieldCheck,
+  cop_kirliligi: Trash2,
+  asiri_kirli: Trash2,
+  dolu_cop_kutusu: Trash2,
+  yol_hasari: Construction,
+  moloz_hafriyat: Truck,
+  grafiti: SprayCan,
+  kaldirim_isgali: TrafficCone,
+  bozuk_tabela: Signpost,
+  su_birikintisi: Droplets,
+  yabani_ot: Sprout,
 };
 
 type Props = {
@@ -72,20 +107,22 @@ export function AnalysisResultView({
         <div className="flex items-center justify-end gap-1 border-b border-white/10 bg-black/40 px-3 py-2">
           <button
             onClick={() => setPano(false)}
-            className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition ${
               !pano
                 ? "bg-white text-black"
                 : "text-muted hover:text-foreground"
             }`}
           >
+            <Grid2x2 size={13} />
             4 Yön
           </button>
           <button
             onClick={() => setPano(true)}
-            className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition ${
               pano ? "bg-white text-black" : "text-muted hover:text-foreground"
             }`}
           >
+            <Compass size={13} />
             360° Gezin
           </button>
         </div>
@@ -150,8 +187,9 @@ export function AnalysisResultView({
               </p>
               {result.safetyRisk && (
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${RISK_COLOR[result.safetyRisk]}`}
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${RISK_COLOR[result.safetyRisk]}`}
                 >
+                  <ShieldAlert size={11} />
                   {RISK_LABEL[result.safetyRisk]}
                 </span>
               )}
@@ -171,12 +209,21 @@ export function AnalysisResultView({
             <p className="text-xs font-semibold text-foreground">
               Tespit edilen durumlar
             </p>
-            {result.situations.map((s, i) => (
-              <div
+            {result.situations.map((s, i) => {
+              const Icon = SITUATION_ICON[s.type] ?? Trash2;
+              return (
+              <motion.div
                 key={`${s.type}-${i}`}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.05, duration: 0.25 }}
                 className="glass flex items-start justify-between gap-3 rounded-xl p-3"
               >
-                <div className="min-w-0">
+                <div className="flex min-w-0 gap-3">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10 text-foreground">
+                    <Icon size={15} />
+                  </span>
+                  <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-medium text-foreground">
                       {SITUATION_LABEL[s.type]}
@@ -201,6 +248,7 @@ export function AnalysisResultView({
                       {s.recommendedAction}
                     </p>
                   )}
+                  </div>
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-xs tabular-nums text-muted">
@@ -212,8 +260,9 @@ export function AnalysisResultView({
                     </p>
                   )}
                 </div>
-              </div>
-            ))}
+              </motion.div>
+              );
+            })}
           </div>
         )}
 
@@ -227,15 +276,17 @@ export function AnalysisResultView({
               </p>
             </div>
             {dispatchedTeam ? (
-              <span className="rounded-full bg-emerald-400/15 px-3 py-1.5 text-xs font-medium text-emerald-300 ring-1 ring-inset ring-emerald-400/30">
-                ✓ {dispatchedTeam} yönlendirildi
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/15 px-3 py-1.5 text-xs font-medium text-emerald-300 ring-1 ring-inset ring-emerald-400/30">
+                <ShieldCheck size={13} />
+                {dispatchedTeam} yönlendirildi
               </span>
             ) : (
               canDispatch && (
                 <button
                   onClick={() => onDispatch?.(result.recommendedTeam)}
-                  className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-primary-soft"
+                  className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-primary-soft"
                 >
+                  <Send size={15} />
                   Ekip Yönlendir
                 </button>
               )
@@ -245,6 +296,7 @@ export function AnalysisResultView({
 
         <div className="glass rounded-2xl p-4">
           <div className="mb-1.5 flex items-center gap-2">
+            <Sparkles size={14} className="text-foreground" />
             <span className="text-xs font-semibold text-foreground">
               Değerlendirme
             </span>
@@ -261,6 +313,7 @@ export function AnalysisResultView({
         {result.aiReport && (
           <div className="glass rounded-2xl p-4">
             <div className="mb-2 flex items-center gap-2">
+              <FileText size={14} className="text-foreground" />
               <span className="text-xs font-semibold text-foreground">
                 Kapsamlı AI Raporu
               </span>

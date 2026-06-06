@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Radar, ShieldCheck } from "lucide-react";
 import { DashboardShell } from "@/features/dashboard/DashboardShell";
 import { HeroScanner } from "@/components/HeroScanner";
 
@@ -20,7 +21,7 @@ export default function Home() {
             </div>
 
             <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-muted backdrop-blur">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+              <Radar size={13} className="animate-[spin_4s_linear_infinite] text-white" />
               Yapay zekâ destekli saha analizi
             </p>
             <h1 className="text-balance text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-6xl">
@@ -38,7 +39,8 @@ export default function Home() {
         <DashboardShell />
       </main>
 
-      <footer className="border-t border-line py-6 text-center text-xs text-muted">
+      <footer className="flex flex-wrap items-center justify-center gap-1.5 border-t border-line py-6 text-center text-xs text-muted">
+        <ShieldCheck size={13} className="text-muted" />
         <Link href="/kvkk" className="underline-offset-2 hover:text-foreground hover:underline">
           KVKK Aydınlatma Metni
         </Link>{" "}

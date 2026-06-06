@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AlertTriangle, Loader2, MapPin, Sparkles } from "lucide-react";
 import type {
   AnalysisRecord,
   AnalysisResult,
@@ -61,9 +62,10 @@ export function AnalyzePanel({ onAnalyzed, onDispatch }: Props) {
         className="glass-strong flex flex-col gap-3 rounded-2xl p-3 sm:flex-row sm:items-center"
       >
         <div className="relative flex-1">
-          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">
-            ⌖
-          </span>
+          <MapPin
+            size={16}
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+          />
           <input
             type="text"
             value={address}
@@ -75,9 +77,19 @@ export function AnalyzePanel({ onAnalyzed, onDispatch }: Props) {
         <button
           type="submit"
           disabled={loading}
-          className="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-primary-soft disabled:opacity-50"
+          className="flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-primary-soft disabled:opacity-50"
         >
-          {loading ? "Analiz ediliyor…" : "Çevreyi Analiz Et"}
+          {loading ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Analiz ediliyor…
+            </>
+          ) : (
+            <>
+              <Sparkles size={16} />
+              Çevreyi Analiz Et
+            </>
+          )}
         </button>
       </form>
 
@@ -98,13 +110,15 @@ export function AnalyzePanel({ onAnalyzed, onDispatch }: Props) {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <div className="flex items-center gap-2 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+          <AlertTriangle size={16} className="shrink-0" />
           {error}
         </div>
       )}
 
       {loading && !result && (
-        <div className="glass animate-pulse rounded-2xl p-6 text-sm text-muted">
+        <div className="glass flex items-center gap-3 rounded-2xl p-6 text-sm text-muted">
+          <Loader2 size={18} className="shrink-0 animate-spin text-foreground" />
           Sokağın dört yönü alınıyor ve yapay zekâ ile analiz ediliyor…
         </div>
       )}

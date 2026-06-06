@@ -1,6 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Database,
+  LayoutDashboard,
+  LogOut,
+  MapPinned,
+  ScanSearch,
+} from "lucide-react";
 import type { DetectionPoint } from "@/types/api";
 import { DetectionCard } from "@/features/detections/DetectionCard";
 import { SummaryBar } from "@/features/detections/SummaryBar";
@@ -13,9 +21,9 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { LoginView } from "@/features/auth/LoginView";
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "analiz", label: "Analiz", icon: "⌖" },
-  { id: "kayitlar", label: "Kayıtlar", icon: "▦" },
-  { id: "pano", label: "Pano", icon: "≡" },
+  { id: "analiz", label: "Analiz", icon: ScanSearch },
+  { id: "kayitlar", label: "Kayıtlar", icon: Database },
+  { id: "pano", label: "Pano", icon: LayoutDashboard },
 ];
 
 export function DashboardShell() {
@@ -63,8 +71,9 @@ export function DashboardShell() {
           </span>
           <button
             onClick={logout}
-            className="rounded-lg border border-line px-3 py-1 transition hover:border-danger/50 hover:text-danger"
+            className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1 transition hover:border-danger/50 hover:text-danger"
           >
+            <LogOut size={13} />
             Çıkış
           </button>
         </div>
@@ -72,75 +81,83 @@ export function DashboardShell() {
 
       <DynamicNav items={NAV_ITEMS} active={view} onChange={setView} />
 
-      <div key={view} className="animate-[fadeIn_0.25s_ease]">
-        {view === "analiz" && (
-          <ModuleCard
-            title="Çevre Analizi"
-            subtitle="Adres gir → Street View → yapay zekâ ile çöp/kirlilik tespiti"
-            badge="Canlı"
-          >
-            <AnalyzePanel onAnalyzed={addRecord} onDispatch={assignTeam} />
-          </ModuleCard>
-        )}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={view}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+        >
+          {view === "analiz" && (
+            <ModuleCard
+              title="Çevre Analizi"
+              subtitle="Adres gir → Street View → yapay zekâ ile çöp/kirlilik tespiti"
+              badge="Canlı"
+            >
+              <AnalyzePanel onAnalyzed={addRecord} onDispatch={assignTeam} />
+            </ModuleCard>
+          )}
 
-        {view === "kayitlar" && (
-          <ModuleCard
-            title="Veri Birikimi"
-            subtitle="Yapılan analizlerin geçmişi ve toplu istatistikleri"
-            badge={`${records.length} kayıt`}
-          >
-            <RecordsView
-              records={records}
-              onClear={clear}
-              onRemove={removeRecord}
-              onAssign={assignTeam}
-              onResolve={(id) => setStatus(id, "resolved")}
-            />
-          </ModuleCard>
-        )}
+          {view === "kayitlar" && (
+            <ModuleCard
+              title="Veri Birikimi"
+              subtitle="Yapılan analizlerin geçmişi ve toplu istatistikleri"
+              badge={`${records.length} kayıt`}
+            >
+              <RecordsView
+                records={records}
+                onClear={clear}
+                onRemove={removeRecord}
+                onAssign={assignTeam}
+                onResolve={(id) => setStatus(id, "resolved")}
+              />
+            </ModuleCard>
+          )}
 
-        {view === "pano" && (
-          <ModuleCard
-            title="Temizlik Öncelik Panosu"
-            subtitle="Yapılan analizler, kirlilik yoğunluğuna göre sıralı"
-            badge={`${detections.length} bölge`}
-          >
-            {detections.length === 0 ? (
-              <div className="glass flex flex-col items-center gap-2 rounded-2xl px-6 py-12 text-center">
-                <span className="text-2xl">🗺️</span>
-                <p className="text-sm font-medium text-foreground">
-                  Henüz analiz yok
-                </p>
-                <p className="max-w-sm text-xs text-muted">
-                  Analiz sekmesinden bir adres tarayın; sonuçlar burada kirlilik
-                  önceliğine göre otomatik sıralanır.
-                </p>
-                <button
-                  onClick={() => setView("analiz")}
-                  className="mt-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-primary-soft"
-                >
-                  Analize başla
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="mb-5">
-                  <SummaryBar detections={detections} />
+          {view === "pano" && (
+            <ModuleCard
+              title="Temizlik Öncelik Panosu"
+              subtitle="Yapılan analizler, kirlilik yoğunluğuna göre sıralı"
+              badge={`${detections.length} bölge`}
+            >
+              {detections.length === 0 ? (
+                <div className="glass flex flex-col items-center gap-2 rounded-2xl px-6 py-12 text-center">
+                  <MapPinned size={30} className="text-muted" strokeWidth={1.6} />
+                  <p className="text-sm font-medium text-foreground">
+                    Henüz analiz yok
+                  </p>
+                  <p className="max-w-sm text-xs text-muted">
+                    Analiz sekmesinden bir adres tarayın; sonuçlar burada
+                    kirlilik önceliğine göre otomatik sıralanır.
+                  </p>
+                  <button
+                    onClick={() => setView("analiz")}
+                    className="mt-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-primary-soft"
+                  >
+                    Analize başla
+                  </button>
                 </div>
-                <ul className="flex flex-col gap-3">
-                  {detections.map((detection, index) => (
-                    <DetectionCard
-                      key={detection.id}
-                      detection={detection}
-                      rank={index + 1}
-                    />
-                  ))}
-                </ul>
-              </>
-            )}
-          </ModuleCard>
-        )}
-      </div>
+              ) : (
+                <>
+                  <div className="mb-5">
+                    <SummaryBar detections={detections} />
+                  </div>
+                  <ul className="flex flex-col gap-3">
+                    {detections.map((detection, index) => (
+                      <DetectionCard
+                        key={detection.id}
+                        detection={detection}
+                        rank={index + 1}
+                      />
+                    ))}
+                  </ul>
+                </>
+              )}
+            </ModuleCard>
+          )}
+        </motion.div>
+      </AnimatePresence>
     </>
   );
 }

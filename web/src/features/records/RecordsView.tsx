@@ -1,5 +1,8 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+import { motion } from "framer-motion";
+import { Check, Send, Trash2 } from "lucide-react";
 import type { AnalysisRecord, DispatchStatus } from "@/types/api";
 import { priorityColor, priorityLabel } from "@/features/detections/priority";
 import { computeRecordsStats } from "./recordsStats";
@@ -71,14 +74,15 @@ export function RecordsView({
         <h3 className="text-sm font-medium text-foreground">Analiz Geçmişi</h3>
         <button
           onClick={onClear}
-          className="rounded-lg border border-line px-3 py-1 text-xs text-muted transition hover:border-danger/50 hover:text-danger"
+          className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1 text-xs text-muted transition hover:border-danger/50 hover:text-danger"
         >
+          <Trash2 size={13} />
           Geçmişi temizle
         </button>
       </div>
 
       <ul className="flex flex-col gap-2">
-        {records.map((r) => {
+        {records.map((r, idx) => {
           const status: DispatchStatus = r.status ?? "pending";
           const canAssign =
             status === "pending" &&
@@ -86,9 +90,14 @@ export function RecordsView({
             r.recommendedTeam !== "—" &&
             typeof onAssign === "function";
           return (
-            <li key={r.id} className="glass flex flex-col gap-3 rounded-2xl p-3">
+            <motion.li
+              key={r.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.03, duration: 0.2 }}
+              className="glass flex flex-col gap-3 rounded-2xl p-3"
+            >
               <div className="flex items-center gap-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={r.streetViewUrl}
                   alt={r.address}
@@ -118,21 +127,7 @@ export function RecordsView({
                     title="Kaydı sil"
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-line text-muted transition hover:border-danger/50 hover:bg-danger/10 hover:text-danger"
                   >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M3 6h18" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      <line x1="10" y1="11" x2="10" y2="17" />
-                      <line x1="14" y1="11" x2="14" y2="17" />
-                    </svg>
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
@@ -157,22 +152,24 @@ export function RecordsView({
                   {canAssign && (
                     <button
                       onClick={() => onAssign?.(r.id, r.recommendedTeam)}
-                      className="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-black transition hover:bg-primary-soft"
+                      className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1 text-xs font-semibold text-black transition hover:bg-primary-soft"
                     >
+                      <Send size={12} />
                       Ekip Yönlendir
                     </button>
                   )}
                   {status !== "resolved" && typeof onResolve === "function" && (
                     <button
                       onClick={() => onResolve?.(r.id)}
-                      className="rounded-lg border border-line px-3 py-1 text-xs text-muted transition hover:border-emerald-400/50 hover:text-emerald-300"
+                      className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1 text-xs text-muted transition hover:border-emerald-400/50 hover:text-emerald-300"
                     >
+                      <Check size={12} />
                       Çözüldü
                     </button>
                   )}
                 </div>
               </div>
-            </li>
+            </motion.li>
           );
         })}
       </ul>
