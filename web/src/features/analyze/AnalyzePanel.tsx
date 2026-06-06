@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Loader2, MapPin, Sparkles } from "lucide-react";
 import type {
   AnalysisRecord,
@@ -23,6 +23,13 @@ export function AnalyzePanel({ onAnalyzed, onDispatch }: Props) {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [dispatchedTeam, setDispatchedTeam] = useState("");
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (result && resultRef.current) {
+      resultRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [result]);
 
   async function analyze(query: string) {
     const value = query.trim();
@@ -124,11 +131,13 @@ export function AnalyzePanel({ onAnalyzed, onDispatch }: Props) {
       )}
 
       {result && (
-        <AnalysisResultView
-          result={result}
-          dispatchedTeam={dispatchedTeam}
-          onDispatch={handleDispatch}
-        />
+        <div ref={resultRef}>
+          <AnalysisResultView
+            result={result}
+            dispatchedTeam={dispatchedTeam}
+            onDispatch={handleDispatch}
+          />
+        </div>
       )}
     </div>
   );

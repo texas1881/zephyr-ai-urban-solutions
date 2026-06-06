@@ -101,9 +101,70 @@ export function AnalysisResultView({
     : null;
 
   return (
-    <div className="glass-strong rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-      {/* Analiz özeti: sayfa kaydırıldığında üstte sabit kalır (DynamicNav altı). */}
-      <div className="sticky top-16 z-20 max-h-[min(78vh,calc(100dvh-5.5rem))] overflow-y-auto overscroll-contain border-b border-white/10 bg-black/85 shadow-[0_8px_32px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+    <div className="glass-strong scroll-mt-24 rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+      {/* 1) Sokak görüntüsü üstte — kaydırınca yukarı çıkar. */}
+      <div className="overflow-hidden rounded-t-3xl">
+        {panoUrl && (
+          <div className="flex items-center justify-between gap-1 border-b border-white/10 bg-black/40 px-3 py-2">
+            <span className="text-[10px] uppercase tracking-[0.14em] text-muted">
+              Sokak görüntüsü
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPano(false)}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition ${
+                  !pano
+                    ? "bg-white text-black"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                <Grid2x2 size={13} />
+                4 Yön
+              </button>
+              <button
+                onClick={() => setPano(true)}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition ${
+                  pano ? "bg-white text-black" : "text-muted hover:text-foreground"
+                }`}
+              >
+                <Compass size={13} />
+                360° Gezin
+              </button>
+            </div>
+          </div>
+        )}
+
+        {pano && panoUrl ? (
+          <div className="relative aspect-video w-full bg-black">
+            <iframe
+              title={`${result.address} 360° Street View`}
+              src={panoUrl}
+              className="h-full w-full border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-px bg-white/10 sm:grid-cols-4">
+            {result.directionImages.map((dir) => (
+              <div key={dir.heading} className="relative aspect-[4/3] bg-black">
+                <img
+                  src={dir.url}
+                  alt={`${result.address} — ${dir.label}`}
+                  className="h-full w-full object-cover"
+                />
+                <span className="absolute left-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white backdrop-blur">
+                  {dir.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 2) Analiz özeti: aşağı kaydırınca menünün altında sabit kalır. */}
+      <div className="sticky top-20 z-30 max-h-[min(82vh,calc(100dvh-6rem))] overflow-y-auto overscroll-contain rounded-b-3xl border-t border-white/10 bg-black/90 shadow-[0_-4px_32px_rgba(0,0,0,0.5)] backdrop-blur-xl">
         <div className="flex flex-col gap-6 p-6">
         <div>
           <div className="flex items-center justify-between gap-3">
@@ -293,67 +354,6 @@ export function AnalysisResultView({
           </div>
         )}
         </div>
-      </div>
-
-      {/* Street View görselleri altta — aşağı kaydırınca analiz üstte kalır. */}
-      <div className="overflow-hidden rounded-b-3xl">
-        {panoUrl && (
-          <div className="flex items-center justify-between gap-1 border-b border-white/10 bg-black/40 px-3 py-2">
-            <span className="text-[10px] uppercase tracking-[0.14em] text-muted">
-              Sokak görüntüsü
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPano(false)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition ${
-                  !pano
-                    ? "bg-white text-black"
-                    : "text-muted hover:text-foreground"
-                }`}
-              >
-                <Grid2x2 size={13} />
-                4 Yön
-              </button>
-              <button
-                onClick={() => setPano(true)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition ${
-                  pano ? "bg-white text-black" : "text-muted hover:text-foreground"
-                }`}
-              >
-                <Compass size={13} />
-                360° Gezin
-              </button>
-            </div>
-          </div>
-        )}
-
-        {pano && panoUrl ? (
-          <div className="relative aspect-video w-full bg-black">
-            <iframe
-              title={`${result.address} 360° Street View`}
-              src={panoUrl}
-              className="h-full w-full border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              allowFullScreen
-            />
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-px bg-white/10 sm:grid-cols-4">
-            {result.directionImages.map((dir) => (
-              <div key={dir.heading} className="relative aspect-[4/3] bg-black">
-                <img
-                  src={dir.url}
-                  alt={`${result.address} — ${dir.label}`}
-                  className="h-full w-full object-cover"
-                />
-                <span className="absolute left-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white backdrop-blur">
-                  {dir.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
