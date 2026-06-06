@@ -9,6 +9,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const lat = Number(searchParams.get("lat"));
   const lng = Number(searchParams.get("lng"));
+  const headingParam = Number(searchParams.get("heading"));
+  const heading = Number.isFinite(headingParam) ? headingParam : 0;
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return NextResponse.json(
@@ -17,7 +19,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const imageUrl = buildStreetViewUrl({ lat, lng, size: "640x400" });
+  const imageUrl = buildStreetViewUrl({ lat, lng, heading, size: "640x400" });
   const imageRes = await fetch(imageUrl);
 
   if (!imageRes.ok) {

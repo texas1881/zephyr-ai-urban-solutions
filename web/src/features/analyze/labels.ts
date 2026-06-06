@@ -92,3 +92,23 @@ export function isVehicle(label: string): boolean {
 export function labelTr(label: string): string {
   return LABEL_TR[label] ?? label;
 }
+
+/**
+ * Groups raw detections (English COCO labels) into Turkish-labelled counts,
+ * filtered to litter or context. Used by the object-detection fallback path.
+ */
+export function groupLabeled(
+  objects: Array<{ label: string }>,
+  kind: "litter" | "context",
+): Array<{ label: string; count: number }> {
+  const counts = new Map<string, number>();
+  for (const o of objects) {
+    const wantLitter = kind === "litter";
+    if (isLitter(o.label) !== wantLitter) continue;
+    const tr = labelTr(o.label);
+    counts.set(tr, (counts.get(tr) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count);
+}

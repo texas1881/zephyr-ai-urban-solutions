@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { AnalysisResult, ApiResponse, DetectedObject } from "@/types/api";
+import type {
+  AnalysisResult,
+  ApiResponse,
+  DetectedObject,
+  DirectionImage,
+  LabeledCount,
+} from "@/types/api";
 import { geocodeAddress } from "@/services/geocodeService";
 import {
   buildStreetViewUrl,
@@ -10,13 +16,34 @@ import {
   detectObjects,
   summarizeDetections,
 } from "@/services/huggingFaceService";
-import { generateAssessment } from "@/services/geminiService";
+import {
+  analyzeImagesWithVision,
+  type VisionImageInput,
+} from "@/services/visionService";
+import { groupLabeled } from "@/features/analyze/labels";
 import { scoreToPriority } from "@/features/detections/priority";
 
+type FetchedDirection = {
+  label: string;
+  heading: number;
+  bytes: ArrayBuffer;
+  mimeType: string;
+};
+
+/** Expands labelled counts into a flat object list (for record statistics). */
+function flatten(items: LabeledCount[]): DetectedObject[] {
+  const out: DetectedObject[] = [];
+  for (const it of items) {
+    for (let i = 0; i < it.count; i++) out.push({ label: it.label, score: 1 });
+  }
+  return out;
+}
+
 /**
- * Analyzes a location for litter density by scanning four Street View
- * directions (front/right/back/left), then summarizing detections and
- * producing a Gemini assessment.
+ * Analyzes a location by scanning four Street View directions
+ * (front/right/back/left). Primary engine is the Gemini vision model
+ * (precise litter/order analysis directly on the imagery); falls back to
+ * COCO object detection when Gemini is unavailable.
  *   GET /api/analyze?address=Başakşehir
  *   GET /api/analyze?lat=41.09&lng=28.80
  */
@@ -50,8 +77,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(error, { status: 400 });
     }
 
-    const hasImagery = await hasStreetViewImagery(lat, lng);
-    if (!hasImagery) {
+    if (!(await hasStreetViewImagery(lat, lng))) {
       const error: ApiResponse<never> = {
         success: false,
         message: "Bu konumda sokak görüntüsü bulunmuyor.",
@@ -59,43 +85,109 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(error, { status: 404 });
     }
 
-    // Scan all four directions in parallel.
-    const perDirection = await Promise.all(
-      SCAN_DIRECTIONS.map(async ({ heading }) => {
-        const imageUrl = buildStreetViewUrl({ lat, lng, heading });
-        const imageRes = await fetch(imageUrl);
-        if (!imageRes.ok) return [] as DetectedObject[];
-        const bytes = await imageRes.arrayBuffer();
-        const detections = await detectObjects(bytes);
-        return detections.map((d) => ({ label: d.label, score: d.score }));
+    // Fetch all four direction images in parallel.
+    const fetched = (
+      await Promise.all(
+        SCAN_DIRECTIONS.map(async ({ heading, label }): Promise<FetchedDirection | null> => {
+          const res = await fetch(buildStreetViewUrl({ lat, lng, heading }));
+          if (!res.ok) return null;
+          return {
+            label,
+            heading,
+            bytes: await res.arrayBuffer(),
+            mimeType: res.headers.get("content-type") ?? "image/jpeg",
+          };
+        }),
+      )
+    ).filter((d): d is FetchedDirection => d !== null);
+
+    const directionImages: DirectionImage[] = SCAN_DIRECTIONS.map(
+      ({ heading, label }) => ({
+        label,
+        heading,
+        url: `/api/streetview?lat=${lat}&lng=${lng}&heading=${heading}`,
       }),
     );
 
-    const allObjects: DetectedObject[] = perDirection.flat();
-    const summary = summarizeDetections(allObjects);
+    const finalAddress =
+      formattedAddress || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 
-    const assessment = await generateAssessment(
-      formattedAddress,
-      summary.densityScore,
-      allObjects,
-    );
+    let result: AnalysisResult;
 
-    const result: AnalysisResult = {
-      address: formattedAddress || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
-      lat,
-      lng,
-      litterCount: summary.litterCount,
-      densityScore: summary.densityScore,
-      priority: scoreToPriority(summary.densityScore),
-      streetViewUrl: `/api/streetview?lat=${lat}&lng=${lng}`,
-      objects: allObjects
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 14),
-      directionsScanned: SCAN_DIRECTIONS.length,
-      cleanliness: assessment.cleanliness,
-      assessment: assessment.comment,
-      aiAssessment: assessment.aiGenerated,
-    };
+    // --- Primary: Google Cloud Vision (comprehensive image analysis) ---
+    try {
+      const visionInput: VisionImageInput[] = fetched.map((d) => ({
+        label: d.label,
+        heading: d.heading,
+        base64: Buffer.from(d.bytes).toString("base64"),
+      }));
+
+      const vision = await analyzeImagesWithVision(finalAddress, visionInput);
+      const objects = flatten(vision.litterItems);
+
+      result = {
+        address: finalAddress,
+        lat,
+        lng,
+        litterCount: vision.litterItems.reduce((s, i) => s + i.count, 0),
+        densityScore: vision.densityScore,
+        priority: scoreToPriority(vision.densityScore),
+        streetViewUrl: `/api/streetview?lat=${lat}&lng=${lng}`,
+        directionImages,
+        litterItems: vision.litterItems,
+        contextItems: vision.contextItems,
+        objects,
+        directionsScanned: fetched.length || SCAN_DIRECTIONS.length,
+        cleanliness: vision.cleanliness,
+        assessment: vision.comment,
+        cityOrder: vision.cityOrder,
+        aiAssessment: true,
+        analysisModel: "vision",
+      };
+    } catch {
+      // --- Fallback: COCO object detection ---
+      const perDirection = await Promise.all(
+        fetched.map((d) => detectObjects(d.bytes)),
+      );
+      const allObjects: DetectedObject[] = perDirection
+        .flat()
+        .map((d) => ({ label: d.label, score: d.score }));
+      const summary = summarizeDetections(allObjects);
+      const litterItems = groupLabeled(allObjects, "litter");
+      const cleanliness =
+        summary.densityScore >= 60
+          ? "Kirli"
+          : summary.densityScore >= 25
+            ? "Orta"
+            : "Temiz";
+      const assessment =
+        litterItems.length === 0
+          ? `${finalAddress} bölgesinde belirgin çöp/atık tespit edilmedi; bölge temiz görünüyor.`
+          : `${finalAddress} bölgesinde ${litterItems
+              .slice(0, 5)
+              .map((i) => `${i.label} ×${i.count}`)
+              .join(", ")} tespit edildi. Temizlik durumu: ${cleanliness}.`;
+
+      result = {
+        address: finalAddress,
+        lat,
+        lng,
+        litterCount: summary.litterCount,
+        densityScore: summary.densityScore,
+        priority: scoreToPriority(summary.densityScore),
+        streetViewUrl: `/api/streetview?lat=${lat}&lng=${lng}`,
+        directionImages,
+        litterItems,
+        contextItems: groupLabeled(allObjects, "context"),
+        objects: allObjects,
+        directionsScanned: fetched.length || SCAN_DIRECTIONS.length,
+        cleanliness,
+        assessment,
+        cityOrder: "",
+        aiAssessment: false,
+        analysisModel: "object-detection",
+      };
+    }
 
     const body: ApiResponse<AnalysisResult> = { success: true, data: result };
     return NextResponse.json(body);
