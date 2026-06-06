@@ -9,6 +9,8 @@ import { RecordsView } from "@/features/records/RecordsView";
 import { useRecords } from "@/features/records/useRecords";
 import { DynamicNav, type NavItem } from "@/features/navigation/DynamicNav";
 import { ModuleCard } from "@/components/ModuleCard";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { LoginView } from "@/features/auth/LoginView";
 
 const NAV_ITEMS: NavItem[] = [
   { id: "analiz", label: "Analiz", icon: "⌖" },
@@ -18,14 +20,44 @@ const NAV_ITEMS: NavItem[] = [
 
 export function DashboardShell() {
   const [view, setView] = useState("analiz");
-  const { records, addRecord, removeRecord, clear } = useRecords();
+  const { records, addRecord, removeRecord, assignTeam, setStatus, clear } =
+    useRecords();
+  const { user, loading, backendEnabled, logout } = useAuth();
 
   const detections = [...mockDetections].sort(
     (a, b) => b.densityScore - a.densityScore,
   );
 
+  // Auth gating: only enforced when a backend URL is configured.
+  if (backendEnabled) {
+    if (loading) {
+      return (
+        <div className="py-20 text-center text-sm text-muted">
+          Oturum doğrulanıyor…
+        </div>
+      );
+    }
+    if (!user) {
+      return <LoginView />;
+    }
+  }
+
   return (
     <>
+      {backendEnabled && user && (
+        <div className="mb-4 flex items-center justify-end gap-3 text-xs text-muted">
+          <span>
+            {user.first_name} {user.last_name}
+          </span>
+          <button
+            onClick={logout}
+            className="rounded-lg border border-line px-3 py-1 transition hover:border-danger/50 hover:text-danger"
+          >
+            Çıkış
+          </button>
+        </div>
+      )}
+
       <DynamicNav items={NAV_ITEMS} active={view} onChange={setView} />
 
       <div key={view} className="animate-[fadeIn_0.25s_ease]">
@@ -35,7 +67,7 @@ export function DashboardShell() {
             subtitle="Adres gir → Street View → yapay zekâ ile çöp/kirlilik tespiti"
             badge="Canlı"
           >
-            <AnalyzePanel onAnalyzed={addRecord} />
+            <AnalyzePanel onAnalyzed={addRecord} onDispatch={assignTeam} />
           </ModuleCard>
         )}
 
@@ -49,6 +81,8 @@ export function DashboardShell() {
               records={records}
               onClear={clear}
               onRemove={removeRecord}
+              onAssign={assignTeam}
+              onResolve={(id) => setStatus(id, "resolved")}
             />
           </ModuleCard>
         )}

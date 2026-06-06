@@ -1,6 +1,6 @@
 "use client";
 
-import type { AnalysisRecord } from "@/types/api";
+import type { AnalysisRecord, DispatchStatus } from "@/types/api";
 import { priorityColor, priorityLabel } from "@/features/detections/priority";
 import { computeRecordsStats } from "./recordsStats";
 
@@ -8,6 +8,20 @@ type Props = {
   records: AnalysisRecord[];
   onClear: () => void;
   onRemove: (id: string) => void;
+  onAssign?: (id: string, team: string) => void;
+  onResolve?: (id: string) => void;
+};
+
+const STATUS_LABEL: Record<DispatchStatus, string> = {
+  pending: "Beklemede",
+  assigned: "Yönlendirildi",
+  resolved: "Çözüldü",
+};
+
+const STATUS_COLOR: Record<DispatchStatus, string> = {
+  pending: "bg-white/10 text-amber-300 ring-amber-400/30",
+  assigned: "bg-white/10 text-sky-300 ring-sky-400/30",
+  resolved: "bg-white/10 text-emerald-300 ring-emerald-400/30",
 };
 
 function Stat({ label, value }: { label: string; value: string | number }) {
@@ -21,7 +35,13 @@ function Stat({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-export function RecordsView({ records, onClear, onRemove }: Props) {
+export function RecordsView({
+  records,
+  onClear,
+  onRemove,
+  onAssign,
+  onResolve,
+}: Props) {
   const stats = computeRecordsStats(records);
 
   if (records.length === 0) {
@@ -58,60 +78,103 @@ export function RecordsView({ records, onClear, onRemove }: Props) {
       </div>
 
       <ul className="flex flex-col gap-2">
-        {records.map((r) => (
-          <li
-            key={r.id}
-            className="glass flex items-center gap-3 rounded-2xl p-3"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={r.streetViewUrl}
-              alt={r.address}
-              className="h-12 w-16 shrink-0 rounded-lg object-cover"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground">
-                {r.address}
-              </p>
-              <p className="text-xs text-muted">
-                {new Date(r.createdAt).toLocaleString("tr-TR")} ·{" "}
-                {r.objects.length} obje
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${priorityColor[r.priority]}`}
-              >
-                {priorityLabel[r.priority]}
-              </span>
-              <span className="w-8 text-right font-serif text-lg font-semibold text-foreground">
-                {r.densityScore}
-              </span>
-              <button
-                onClick={() => onRemove(r.id)}
-                aria-label="Kaydı sil"
-                title="Kaydı sil"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-line text-muted transition hover:border-danger/50 hover:bg-danger/10 hover:text-danger"
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+        {records.map((r) => {
+          const status: DispatchStatus = r.status ?? "pending";
+          const canAssign =
+            status === "pending" &&
+            r.recommendedTeam &&
+            r.recommendedTeam !== "—" &&
+            typeof onAssign === "function";
+          return (
+            <li key={r.id} className="glass flex flex-col gap-3 rounded-2xl p-3">
+              <div className="flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={r.streetViewUrl}
+                  alt={r.address}
+                  className="h-12 w-16 shrink-0 rounded-lg object-cover"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {r.address}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {new Date(r.createdAt).toLocaleString("tr-TR")} ·{" "}
+                    {(r.situations?.length ?? r.objects.length)} durum
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${priorityColor[r.priority]}`}
+                  >
+                    {priorityLabel[r.priority]}
+                  </span>
+                  <span className="w-8 text-right font-serif text-lg font-semibold text-foreground">
+                    {r.densityScore}
+                  </span>
+                  <button
+                    onClick={() => onRemove(r.id)}
+                    aria-label="Kaydı sil"
+                    title="Kaydı sil"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-line text-muted transition hover:border-danger/50 hover:bg-danger/10 hover:text-danger"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M3 6h18" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <line x1="10" y1="11" x2="10" y2="17" />
+                      <line x1="14" y1="11" x2="14" y2="17" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 border-t border-line pt-2">
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_COLOR[status]}`}
                 >
-                  <path d="M3 6h18" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  <line x1="10" y1="11" x2="10" y2="17" />
-                  <line x1="14" y1="11" x2="14" y2="17" />
-                </svg>
-              </button>
-            </div>
-          </li>
-        ))}
+                  {STATUS_LABEL[status]}
+                </span>
+                {r.assignedTeam ? (
+                  <span className="text-xs text-muted">
+                    Ekip: {r.assignedTeam}
+                  </span>
+                ) : r.recommendedTeam && r.recommendedTeam !== "—" ? (
+                  <span className="text-xs text-muted">
+                    Önerilen: {r.recommendedTeam}
+                  </span>
+                ) : null}
+
+                <div className="ml-auto flex items-center gap-2">
+                  {canAssign && (
+                    <button
+                      onClick={() => onAssign?.(r.id, r.recommendedTeam)}
+                      className="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-black transition hover:bg-primary-soft"
+                    >
+                      Ekip Yönlendir
+                    </button>
+                  )}
+                  {status !== "resolved" && typeof onResolve === "function" && (
+                    <button
+                      onClick={() => onResolve?.(r.id)}
+                      className="rounded-lg border border-line px-3 py-1 text-xs text-muted transition hover:border-emerald-400/50 hover:text-emerald-300"
+                    >
+                      Çözüldü
+                    </button>
+                  )}
+                </div>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

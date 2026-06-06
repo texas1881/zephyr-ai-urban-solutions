@@ -1,17 +1,39 @@
+"use client";
+
 /* eslint-disable @next/next/no-img-element */
 import type { AnalysisResult } from "@/types/api";
 import { priorityColor, priorityLabel } from "@/features/detections/priority";
+import {
+  SEVERITY_LABEL,
+  SITUATION_LABEL,
+  severityColor,
+} from "./situations";
 import { DensityGauge } from "./DensityGauge";
 
 type Props = {
   result: AnalysisResult;
+  /** Team the record has been dispatched to (empty if not yet). */
+  dispatchedTeam?: string;
+  /** Called when the user dispatches the recommended team. */
+  onDispatch?: (team: string) => void;
 };
 
-export function AnalysisResultView({ result }: Props) {
+export function AnalysisResultView({
+  result,
+  dispatchedTeam = "",
+  onDispatch,
+}: Props) {
   const modelLabel =
-    result.analysisModel === "vision"
-      ? "Google Vision görsel analiz"
-      : "Nesne tespiti";
+    result.analysisModel === "gemini"
+      ? "Gemini görsel analiz"
+      : result.analysisModel === "vision"
+        ? "Google Vision"
+        : "Nesne tespiti";
+
+  const canDispatch =
+    !dispatchedTeam &&
+    result.recommendedTeam !== "—" &&
+    typeof onDispatch === "function";
 
   return (
     <div className="glass-strong overflow-hidden rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
@@ -61,17 +83,79 @@ export function AnalysisResultView({ result }: Props) {
             </p>
             <p className="text-foreground">
               <span className="text-2xl font-semibold tabular-nums">
-                {result.litterCount}
+                {result.situations.length || result.litterCount}
               </span>{" "}
-              <span className="text-muted">çöp/kirlilik ögesi</span>
+              <span className="text-muted">tespit edilen durum</span>
             </p>
-            {result.cityOrder && (
-              <p className="max-w-md text-xs leading-5 text-muted">
-                Şehir düzeni: {result.cityOrder}
-              </p>
-            )}
           </div>
         </div>
+
+        {/* Durum kartları */}
+        {result.situations.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-foreground">
+              Tespit edilen durumlar
+            </p>
+            {result.situations.map((s, i) => (
+              <div
+                key={`${s.type}-${i}`}
+                className="glass flex items-start justify-between gap-3 rounded-xl p-3"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {SITUATION_LABEL[s.type]}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${severityColor[s.severity]}`}
+                    >
+                      {SEVERITY_LABEL[s.severity]}
+                    </span>
+                  </div>
+                  {s.description && (
+                    <p className="mt-0.5 text-xs text-muted">{s.description}</p>
+                  )}
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-xs tabular-nums text-muted">
+                    %{Math.round(s.confidence * 100)}
+                  </p>
+                  {s.direction && (
+                    <p className="text-[10px] uppercase tracking-wide text-muted">
+                      {s.direction}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Ekip yönlendirme */}
+        {result.recommendedTeam !== "—" && (
+          <div className="glass flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4">
+            <div>
+              <p className="text-xs text-muted">Önerilen ekip</p>
+              <p className="text-sm font-semibold text-foreground">
+                {result.recommendedTeam}
+              </p>
+            </div>
+            {dispatchedTeam ? (
+              <span className="rounded-full bg-emerald-400/15 px-3 py-1.5 text-xs font-medium text-emerald-300 ring-1 ring-inset ring-emerald-400/30">
+                ✓ {dispatchedTeam} yönlendirildi
+              </span>
+            ) : (
+              canDispatch && (
+                <button
+                  onClick={() => onDispatch?.(result.recommendedTeam)}
+                  className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-primary-soft"
+                >
+                  Ekip Yönlendir
+                </button>
+              )
+            )}
+          </div>
+        )}
 
         <div className="glass rounded-2xl p-4">
           <div className="mb-1.5 flex items-center gap-2">
@@ -86,24 +170,6 @@ export function AnalysisResultView({ result }: Props) {
             {result.assessment}
           </p>
         </div>
-
-        {result.litterItems.length > 0 && (
-          <div>
-            <p className="mb-2 text-xs font-semibold text-foreground">
-              Tespit edilen atık
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {result.litterItems.map((g, i) => (
-                <span
-                  key={`${g.label}-${i}`}
-                  className="rounded-md bg-danger/15 px-2 py-0.5 text-xs font-medium text-danger ring-1 ring-inset ring-danger/30"
-                >
-                  {g.label} ×{g.count}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
 
         {result.contextItems.length > 0 && (
           <div>

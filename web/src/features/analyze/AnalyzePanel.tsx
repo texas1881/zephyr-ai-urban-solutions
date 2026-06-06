@@ -1,20 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import type { AnalysisResult, ApiResponse } from "@/types/api";
+import type {
+  AnalysisRecord,
+  AnalysisResult,
+  ApiResponse,
+} from "@/types/api";
 import { AnalysisResultView } from "./AnalysisResultView";
 
 const SUGGESTIONS = ["Başakşehir", "Kayaşehir", "Taksim", "Kadıköy"];
 
 type Props = {
-  onAnalyzed?: (result: AnalysisResult) => void;
+  onAnalyzed?: (result: AnalysisResult) => AnalysisRecord | void;
+  onDispatch?: (id: string, team: string) => void;
 };
 
-export function AnalyzePanel({ onAnalyzed }: Props) {
+export function AnalyzePanel({ onAnalyzed, onDispatch }: Props) {
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [dispatchedTeam, setDispatchedTeam] = useState("");
 
   async function analyze(query: string) {
     const value = query.trim();
@@ -22,18 +29,26 @@ export function AnalyzePanel({ onAnalyzed }: Props) {
 
     setLoading(true);
     setError(null);
+    setDispatchedTeam("");
+    setSavedId(null);
     try {
       const res = await fetch(`/api/analyze?address=${encodeURIComponent(value)}`);
       const body: ApiResponse<AnalysisResult> = await res.json();
       if (!body.success) throw new Error(body.message);
       setResult(body.data);
-      onAnalyzed?.(body.data);
+      const saved = onAnalyzed?.(body.data);
+      if (saved) setSavedId(saved.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analiz başarısız oldu");
       setResult(null);
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleDispatch(team: string) {
+    if (savedId) onDispatch?.(savedId, team);
+    setDispatchedTeam(team);
   }
 
   return (
@@ -95,7 +110,13 @@ export function AnalyzePanel({ onAnalyzed }: Props) {
         </div>
       )}
 
-      {result && <AnalysisResultView result={result} />}
+      {result && (
+        <AnalysisResultView
+          result={result}
+          dispatchedTeam={dispatchedTeam}
+          onDispatch={handleDispatch}
+        />
+      )}
     </div>
   );
 }

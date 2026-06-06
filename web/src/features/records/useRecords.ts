@@ -1,10 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { AnalysisRecord, AnalysisResult } from "@/types/api";
+import type {
+  AnalysisRecord,
+  AnalysisResult,
+  DispatchStatus,
+} from "@/types/api";
+import { apiFireAndForget } from "@/services/apiClient";
 
 const STORAGE_KEY = "zephyr.records.v1";
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
 
 function loadLocal(): AnalysisRecord[] {
   if (typeof window === "undefined") return [];
@@ -26,8 +30,8 @@ function saveLocal(records: AnalysisRecord[]) {
 
 /**
  * Data-accumulation store for analyses.
- * Persists to localStorage and best-effort syncs to the Go backend
- * (masterfabric-go) when NEXT_PUBLIC_BACKEND_URL is configured.
+ * Persists to localStorage and best-effort syncs to the masterfabric-go
+ * backend (with JWT) when NEXT_PUBLIC_BACKEND_URL is configured.
  */
 export function useRecords() {
   const [records, setRecords] = useState<AnalysisRecord[]>([]);
@@ -36,7 +40,7 @@ export function useRecords() {
     setRecords(loadLocal());
   }, []);
 
-  const addRecord = useCallback((result: AnalysisResult) => {
+  const addRecord = useCallback((result: AnalysisResult): AnalysisRecord => {
     const record: AnalysisRecord = {
       ...result,
       id:
@@ -52,15 +56,10 @@ export function useRecords() {
       return next;
     });
 
-    if (BACKEND_URL) {
-      fetch(`${BACKEND_URL}/api/v1/records`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(record),
-      }).catch(() => {
-        /* backend optional — localStorage is the source of truth in demo */
-      });
-    }
+    apiFireAndForget("/api/v1/cleanliness/records", {
+      method: "POST",
+      body: record,
+    });
 
     return record;
   }, []);
@@ -71,20 +70,42 @@ export function useRecords() {
       saveLocal(next);
       return next;
     });
+    apiFireAndForget(`/api/v1/cleanliness/records/${id}`, { method: "DELETE" });
+  }, []);
 
-    if (BACKEND_URL) {
-      fetch(`${BACKEND_URL}/api/v1/records/${id}`, { method: "DELETE" }).catch(
-        () => {
-          /* backend optional */
-        },
+  const assignTeam = useCallback((id: string, team: string) => {
+    setRecords((prev) => {
+      const next = prev.map((r) =>
+        r.id === id
+          ? { ...r, assignedTeam: team, status: "assigned" as DispatchStatus }
+          : r,
       );
-    }
+      saveLocal(next);
+      return next;
+    });
+    apiFireAndForget(`/api/v1/cleanliness/records/${id}/assign`, {
+      method: "POST",
+      body: { team },
+    });
+  }, []);
+
+  const setStatus = useCallback((id: string, status: DispatchStatus) => {
+    setRecords((prev) => {
+      const next = prev.map((r) => (r.id === id ? { ...r, status } : r));
+      saveLocal(next);
+      return next;
+    });
+    apiFireAndForget(`/api/v1/cleanliness/records/${id}/status`, {
+      method: "POST",
+      body: { status },
+    });
   }, []);
 
   const clear = useCallback(() => {
     setRecords([]);
     saveLocal([]);
+    apiFireAndForget("/api/v1/cleanliness/records", { method: "DELETE" });
   }, []);
 
-  return { records, addRecord, removeRecord, clear };
+  return { records, addRecord, removeRecord, assignTeam, setStatus, clear };
 }
