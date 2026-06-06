@@ -45,3 +45,9 @@ export type AnalysisResult = {
   streetViewUrl: string;
   objects: DetectedObject[];
 };
+
+/** A persisted analysis (data accumulation). */
+export type AnalysisRecord = AnalysisResult & {
+  id: string;
+  createdAt: string;
+};

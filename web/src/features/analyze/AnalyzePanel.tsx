@@ -6,7 +6,11 @@ import { AnalysisResultView } from "./AnalysisResultView";
 
 const SUGGESTIONS = ["Başakşehir", "Kayaşehir", "Taksim", "Kadıköy"];
 
-export function AnalyzePanel() {
+type Props = {
+  onAnalyzed?: (result: AnalysisResult) => void;
+};
+
+export function AnalyzePanel({ onAnalyzed }: Props) {
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +27,7 @@ export function AnalyzePanel() {
       const body: ApiResponse<AnalysisResult> = await res.json();
       if (!body.success) throw new Error(body.message);
       setResult(body.data);
+      onAnalyzed?.(body.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analiz başarısız oldu");
       setResult(null);

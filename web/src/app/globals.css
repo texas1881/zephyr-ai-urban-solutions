@@ -33,3 +33,14 @@ body {
     radial-gradient(circle at 1px 1px, rgba(43, 38, 32, 0.04) 1px, transparent 0);
   background-size: 22px 22px;
 }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
