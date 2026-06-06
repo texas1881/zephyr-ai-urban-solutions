@@ -18,7 +18,7 @@ const NAV_ITEMS: NavItem[] = [
 
 export function DashboardShell() {
   const [view, setView] = useState("analiz");
-  const { records, addRecord, clear } = useRecords();
+  const { records, addRecord, removeRecord, clear } = useRecords();
 
   const detections = [...mockDetections].sort(
     (a, b) => b.densityScore - a.densityScore,
@@ -45,7 +45,11 @@ export function DashboardShell() {
             subtitle="Yapılan analizlerin geçmişi ve toplu istatistikleri"
             badge={`${records.length} kayıt`}
           >
-            <RecordsView records={records} onClear={clear} />
+            <RecordsView
+              records={records}
+              onClear={clear}
+              onRemove={removeRecord}
+            />
           </ModuleCard>
         )}
 

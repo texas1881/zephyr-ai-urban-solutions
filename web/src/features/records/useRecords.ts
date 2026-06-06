@@ -65,10 +65,26 @@ export function useRecords() {
     return record;
   }, []);
 
+  const removeRecord = useCallback((id: string) => {
+    setRecords((prev) => {
+      const next = prev.filter((r) => r.id !== id);
+      saveLocal(next);
+      return next;
+    });
+
+    if (BACKEND_URL) {
+      fetch(`${BACKEND_URL}/api/v1/records/${id}`, { method: "DELETE" }).catch(
+        () => {
+          /* backend optional */
+        },
+      );
+    }
+  }, []);
+
   const clear = useCallback(() => {
     setRecords([]);
     saveLocal([]);
   }, []);
 
-  return { records, addRecord, clear };
+  return { records, addRecord, removeRecord, clear };
 }
