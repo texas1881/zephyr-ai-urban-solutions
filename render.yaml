@@ -13,7 +13,7 @@ services:
     name: zephyr-backend
     runtime: docker
     repo: https://github.com/texas1881/zephyr-ai-urban-solutions
-    branch: develop
+    branch: main
     rootDir: backend
     dockerfilePath: deployments/Dockerfile
     dockerContext: .
