@@ -1,6 +1,10 @@
 // Deterministic situation synthesis from vision detections.
 
-import { isPollutionLabel } from "@/features/analyze/detectionFilters";
+import {
+  isLitterCocoLabel,
+  isPollutionLabel,
+  isUrbanQueryLabel,
+} from "@/features/analyze/detectionFilters";
 import {
   URBAN_DETECTION_QUERIES,
   type UrbanQuery,
@@ -11,37 +15,34 @@ import { validateSituationAnalysis } from "@/services/situationValidation";
 import type { DirectionDetections, HFDetection } from "@/services/huggingFaceService";
 import type { SituationType } from "@/features/analyze/situations";
 
-const MIN_DETECTION_SCORE = 0.22;
+const MIN_DETECTION_SCORE = 0.28;
+const MIN_BIN_DETECTION_SCORE = 0.42;
+const MIN_COCO_LITTER_SCORE = 0.55;
 
-/** COCO/DETR etiketleri → durum tipi */
+/** COCO/DETR — yalnızca sıkı atık proxy'leri */
 const COCO_SITUATION: Record<string, SituationType> = {
   bottle: "cop_kirliligi",
   cup: "cop_kirliligi",
   "wine glass": "cop_kirliligi",
   bowl: "cop_kirliligi",
   can: "cop_kirliligi",
-  banana: "cop_kirliligi",
-  apple: "cop_kirliligi",
-  orange: "cop_kirliligi",
-  sandwich: "cop_kirliligi",
-  pizza: "cop_kirliligi",
-  donut: "cop_kirliligi",
-  cake: "cop_kirliligi",
-  fork: "cop_kirliligi",
-  knife: "cop_kirliligi",
-  spoon: "cop_kirliligi",
-  book: "cop_kirliligi",
-  handbag: "cop_kirliligi",
 };
 
 function matchQuery(label: string): UrbanQuery | undefined {
   const lower = label.toLowerCase().trim();
-  return URBAN_DETECTION_QUERIES.find(
-    (q) =>
-      lower === q.query.toLowerCase() ||
-      lower.includes(q.query.toLowerCase()) ||
-      q.query.toLowerCase().includes(lower),
-  );
+  return URBAN_DETECTION_QUERIES.find((q) => lower === q.query.toLowerCase());
+}
+
+function passesScoreGate(det: HFDetection): boolean {
+  if (isUrbanQueryLabel(det.label)) {
+    const q = matchQuery(det.label);
+    if (q?.situationHint === "dolu_cop_kutusu") {
+      return det.score >= MIN_BIN_DETECTION_SCORE;
+    }
+    return det.score >= MIN_DETECTION_SCORE;
+  }
+  if (isLitterCocoLabel(det.label)) return det.score >= MIN_COCO_LITTER_SCORE;
+  return false;
 }
 
 function matchCoco(label: string): SituationType | undefined {
@@ -71,6 +72,19 @@ function actionFor(type: SituationType): string {
   return map[type];
 }
 
+function confidenceFromDetection(
+  type: SituationType,
+  score: number,
+): number {
+  if (type === "dolu_cop_kutusu") {
+    return Math.min(0.92, Math.max(0.72, score + 0.08));
+  }
+  if (type === "cop_kirliligi" || type === "asiri_kirli") {
+    return Math.min(0.94, Math.max(0.82, score + 0.12));
+  }
+  return Math.min(0.92, score + 0.05);
+}
+
 function buildSituation(
   type: SituationType,
   detection: HFDetection,
@@ -78,8 +92,11 @@ function buildSituation(
 ): DetectedSituation {
   return {
     type,
-    severity: severityFromScore(detection.score),
-    confidence: Math.min(0.92, detection.score + 0.05),
+    severity:
+      type === "dolu_cop_kutusu" && detection.score >= 0.5
+        ? "yuksek"
+        : severityFromScore(detection.score),
+    confidence: confidenceFromDetection(type, detection.score),
     description: `Görüntü tanıma: "${detection.label}" (skor ${(detection.score * 100).toFixed(0)}%)`,
     location: "sokak görüntüsünde tespit edilen alan",
     recommendedAction: actionFor(type),
@@ -93,7 +110,7 @@ export function filterSignificantDetections(
   return directions.map((d) => ({
     ...d,
     detections: d.detections.filter(
-      (x) => x.score >= MIN_DETECTION_SCORE && isPollutionLabel(x.label),
+      (x) => isPollutionLabel(x.label) && passesScoreGate(x),
     ),
   }));
 }

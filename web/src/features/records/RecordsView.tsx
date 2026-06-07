@@ -24,7 +24,7 @@ const STATUS_LABEL: Record<DispatchStatus, string> = {
 const STATUS_COLOR: Record<DispatchStatus, string> = {
   pending: "bg-white/10 text-amber-300 ring-amber-400/30",
   assigned: "bg-white/10 text-sky-300 ring-sky-400/30",
-  resolved: "bg-white/10 text-emerald-300 ring-emerald-400/30",
+  resolved: "bg-white/10 text-foreground/80 ring-white/20",
 };
 
 function Stat({ label, value }: { label: string; value: string | number }) {
@@ -161,7 +161,7 @@ export function RecordsView({
                   {status !== "resolved" && typeof onResolve === "function" && (
                     <button
                       onClick={() => onResolve?.(r.id)}
-                      className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1 text-xs text-muted transition hover:border-emerald-400/50 hover:text-emerald-300"
+                      className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1 text-xs text-muted transition hover:border-white/30 hover:text-foreground"
                     >
                       <Check size={12} />
                       Çözüldü

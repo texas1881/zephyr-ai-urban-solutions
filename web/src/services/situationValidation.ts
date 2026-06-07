@@ -1,10 +1,29 @@
 import { isPollutionSituationText } from "@/features/analyze/detectionFilters";
 import type { DetectedSituation, SafetyRisk } from "@/types/api";
-import { severityRank } from "@/features/analyze/situations";
+import { severityRank, type SituationType } from "@/features/analyze/situations";
 import type { SituationAnalysis } from "@/services/situationAnalysis";
+import {
+  enrichSituations,
+  hasBinOverflowEvidence,
+} from "@/services/situationEnrichment";
 
 const DEFAULT_MIN = 0.55;
 const DEFAULT_MIN_LOW = 0.62;
+const MAX_SITUATIONS = 4;
+
+/** Temizlik tipleri hassas; altyapı tipleri sıkı */
+const TYPE_MIN_CONFIDENCE: Partial<Record<SituationType, number>> = {
+  dolu_cop_kutusu: 0.72,
+  cop_kirliligi: 0.52,
+  asiri_kirli: 0.55,
+  yol_hasari: 0.68,
+  su_birikintisi: 0.72,
+  moloz_hafriyat: 0.65,
+  bozuk_tabela: 0.65,
+  kaldirim_isgali: 0.62,
+  yabani_ot: 0.6,
+  grafiti: 0.6,
+};
 
 const SEVERITY_WEIGHT: Record<string, number> = {
   dusuk: 8,
@@ -16,18 +35,27 @@ const SEVERITY_WEIGHT: Record<string, number> = {
 export type ValidationOptions = {
   minConfidence?: number;
   minLowSeverity?: number;
+  maxSituations?: number;
 };
+
+function minConfidenceFor(s: DetectedSituation, base: number, minLow: number): number {
+  const typeMin = TYPE_MIN_CONFIDENCE[s.type] ?? base;
+  const sevMin = s.severity === "dusuk" ? minLow : base;
+  return Math.max(typeMin, sevMin);
+}
 
 function passesConfidenceGate(
   s: DetectedSituation,
   minConf: number,
   minLow: number,
 ): boolean {
-  const min = s.severity === "dusuk" ? minLow : minConf;
+  const min = minConfidenceFor(s, minConf, minLow);
   if (s.confidence < min) return false;
-  if (!s.description || s.description.length < 8) return false;
+  if (!s.description || s.description.length < 12) return false;
   if (!isPollutionSituationText(s.description)) return false;
-  if (!isPollutionSituationText(s.location ?? "")) return false;
+  if (s.location && !isPollutionSituationText(s.location)) return false;
+  if (!s.direction || s.direction.length < 2) return false;
+  if (s.type === "dolu_cop_kutusu" && !hasBinOverflowEvidence(s)) return false;
   return true;
 }
 
@@ -75,12 +103,15 @@ export function validateSituationAnalysis(
 ): SituationAnalysis {
   const minConf = opts?.minConfidence ?? DEFAULT_MIN;
   const minLow = opts?.minLowSeverity ?? DEFAULT_MIN_LOW;
+  const maxSit = opts?.maxSituations ?? MAX_SITUATIONS;
 
-  const situations = dedupeByType(
-    raw.situations.filter((s) =>
-      passesConfidenceGate(s, minConf, minLow),
-    ),
-  ).slice(0, 8);
+  const situations = enrichSituations(
+    dedupeByType(
+      raw.situations.filter((s) =>
+        passesConfidenceGate(s, minConf, minLow),
+      ),
+    ).slice(0, maxSit),
+  );
 
   const densityScore = scoreFromSituations(situations);
   const cleanliness = cleanlinessFrom(densityScore, situations.length);
@@ -89,7 +120,7 @@ export function validateSituationAnalysis(
   const summary =
     situations.length === 0
       ? raw.situations.length > 0
-        ? `${raw.summary.split(".")[0]}. Doğrulama sonrası güven eşiğini geçen belirgin sorun kalmadı.`
+        ? `${raw.summary.split(".")[0]}. Çoklu ajan doğrulaması sonrası güvenilir bulgu kalmadı.`
         : "Bölgede belirgin çevre sorunu tespit edilmedi; genel görünüm uygun."
       : raw.summary;
 

@@ -35,13 +35,11 @@ export function reportContradictsContext(
 
   if (/tarım/i.test(report) && ctx.densityScore < 15) return true;
 
-  // Araç/insan kirlilik olarak yazılmışsa reddet
-  if (
-    /\b(araç|otomobil|car|kamyon|otobüs|bisiklet|yaya|insan)\b.*\b(çöp|kirlilik|atık|tespit|sorun|kirlilik)\b/i.test(
-      report,
-    ) ||
-    /\b(çöp|kirlilik|atık).*\b(araç|otomobil|car)\b/i.test(report)
-  ) {
+  const falsePositiveLink =
+    /\b(araç|otomobil|car|kamyon|otobüs|bisiklet|yaya|insan|çanta|el\s*çantası|handbag|backpack)\b.*\b(çöp|kirlilik|atık|tespit|sorun)\b/i;
+  const falsePositiveReverse =
+    /\b(çöp|kirlilik|atık).*\b(araç|otomobil|car|çanta|handbag)\b/i;
+  if (falsePositiveLink.test(report) || falsePositiveReverse.test(report)) {
     return true;
   }
 

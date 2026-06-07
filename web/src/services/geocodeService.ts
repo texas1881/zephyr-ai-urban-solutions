@@ -1,3 +1,5 @@
+import { fetchWithRetry } from "@/lib/fetchWithRetry";
+
 const GEOCODE_BASE = "https://maps.googleapis.com/maps/api/geocode/json";
 
 export type GeocodeResult = {
@@ -27,7 +29,7 @@ export async function geocodeAddress(
     language: "tr",
   });
 
-  const res = await fetch(`${GEOCODE_BASE}?${params.toString()}`);
+  const res = await fetchWithRetry(`${GEOCODE_BASE}?${params.toString()}`);
   const body = await res.json();
 
   if (body.status !== "OK" || !body.results?.length) {

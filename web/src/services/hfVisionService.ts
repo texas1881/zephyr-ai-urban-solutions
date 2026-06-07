@@ -6,16 +6,8 @@
 // the shared detection prompt, and the JSON response is parsed into the same
 // Parses into the shared SituationAnalysis contract.
 
-import {
-  parseSituationResponse,
-  SITUATION_PROMPT,
-  type SituationAnalysis,
-} from "@/services/situationAnalysis";
-
-const HF_ROUTER = "https://router.huggingface.co/v1/chat/completions";
-// Larger, newer multimodal model for more precise/sensitive detection.
-// Overridable via HF_VISION_MODEL.
-const DEFAULT_MODEL = "Qwen/Qwen3-VL-30B-A3B-Instruct";
+import { analyzeWithVlmFallback } from "@/services/hfVisionFallback";
+import type { SituationAnalysis } from "@/services/situationAnalysis";
 
 export type DirectionImageInput = {
   /** ön | arka | sağ | sol */
@@ -25,67 +17,41 @@ export type DirectionImageInput = {
   mimeType: string;
 };
 
-type ChatContent =
-  | { type: "text"; text: string }
-  | { type: "image_url"; image_url: { url: string } };
+export type VisionAnalysisMeta = {
+  vlmModel: string;
+  vlmAttempts: Array<{ model: string; ok: boolean; error?: string }>;
+};
 
 /**
- * Analyzes the four direction images with a Hugging Face multimodal model and
- * returns a structured situation report. Throws when the token is missing or
- * the request/parse fails so the caller can fall back to another engine.
+ * VLM fallback zinciri ile dört yön analizi.
+ * 30B → 8B → Qwen2.5-VL-7B sırasıyla dener.
  */
 export async function analyzeSituationsWithHFVision(
   address: string,
   directions: DirectionImageInput[],
+  detectionHints?: string,
 ): Promise<SituationAnalysis> {
-  const token = process.env.HUGGINGFACE_API_TOKEN;
-  if (!token) throw new Error("HUGGINGFACE_API_TOKEN yok");
   if (directions.length === 0) throw new Error("Görsel yok");
+  const result = await analyzeWithVlmFallback(
+    address,
+    directions,
+    detectionHints,
+  );
+  return result.analysis;
+}
 
-  const model = process.env.HF_VISION_MODEL || DEFAULT_MODEL;
-
-  const content: ChatContent[] = [
-    { type: "text", text: `${SITUATION_PROMPT}\n\nAdres: ${address}` },
-  ];
-  for (const d of directions) {
-    content.push({ type: "text", text: `Yön: ${d.label}` });
-    content.push({
-      type: "image_url",
-      image_url: { url: `data:${d.mimeType};base64,${d.base64}` },
-    });
-  }
-
-  // Abort if the provider hangs, so the request can fall back instead of stalling.
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 50000);
-  let res: Response;
-  try {
-    res = await fetch(HF_ROUTER, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content }],
-        temperature: 0.08,
-        top_p: 0.85,
-        max_tokens: 2048,
-      }),
-      signal: ctrl.signal,
-    });
-  } finally {
-    clearTimeout(timer);
-  }
-
-  if (!res.ok) {
-    throw new Error(`HF vision ${res.status}: ${await res.text()}`);
-  }
-
-  const body = await res.json();
-  const text: string | undefined = body?.choices?.[0]?.message?.content;
-  if (!text) throw new Error("HF vision boş yanıt");
-
-  return parseSituationResponse(text);
+export async function analyzeSituationsWithHFVisionMeta(
+  address: string,
+  directions: DirectionImageInput[],
+  detectionHints?: string,
+): Promise<SituationAnalysis & { _meta: VisionAnalysisMeta }> {
+  const result = await analyzeWithVlmFallback(
+    address,
+    directions,
+    detectionHints,
+  );
+  return {
+    ...result.analysis,
+    _meta: { vlmModel: result.model, vlmAttempts: result.attempts },
+  };
 }

@@ -2,15 +2,18 @@
 
 import { useEffect } from "react";
 import { X, ZoomIn } from "lucide-react";
+import { DetectionImageFrame } from "@/features/detections/DetectionImageFrame";
+import type { DetectionBox } from "@/features/detections/detectionOverlayUtils";
 
 type Props = {
   src: string;
   alt: string;
   label?: string;
+  boxes?: DetectionBox[];
   onClose: () => void;
 };
 
-export function ImageLightbox({ src, alt, label, onClose }: Props) {
+export function ImageLightbox({ src, alt, label, boxes, onClose }: Props) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -49,10 +52,13 @@ export function ImageLightbox({ src, alt, label, onClose }: Props) {
             {label}
           </span>
         )}
-        <img
+        <DetectionImageFrame
           src={src}
           alt={alt}
-          className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain shadow-2xl"
+          boxes={boxes}
+          interactive={false}
+          fit="contain"
+          className="aspect-[4/3] max-h-[82vh] w-full max-w-full rounded-xl shadow-2xl"
         />
         <p className="mt-3 flex items-center gap-1.5 text-xs text-white/60">
           <ZoomIn size={13} />

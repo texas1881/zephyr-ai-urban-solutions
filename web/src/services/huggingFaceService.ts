@@ -5,13 +5,27 @@
 
 import { isPollutionLabel } from "@/features/analyze/detectionFilters";
 import { LITTER_LABELS } from "@/features/analyze/labels";
-import { URBAN_QUERY_LABELS } from "@/features/analyze/urbanQueries";
+import {
+  URBAN_DETECTION_QUERIES,
+  URBAN_QUERY_LABELS,
+} from "@/features/analyze/urbanQueries";
+import {
+  detectWithGroundingDino,
+  isGroundingDinoEnabled,
+} from "@/services/groundingDinoService";
+import { fetchWithRetry } from "@/lib/fetchWithRetry";
+
+const BIN_QUERY_LABELS = URBAN_DETECTION_QUERIES.filter(
+  (q) => q.situationHint === "dolu_cop_kutusu",
+).map((q) => q.query);
+
+const BIN_DETECTION_THRESHOLD = 0.42;
 
 const HF_ROUTER = "https://router.huggingface.co/hf-inference/models";
 
-const DEFAULT_VISION_MODEL = "google/owlv2-base-patch16-ensemble";
+const DEFAULT_VISION_MODEL = "google/owlv2-large-patch14-ensemble";
 const FALLBACK_OWL_MODELS = [
-  "google/owlv2-large-patch14-ensemble",
+  "google/owlv2-base-patch16-ensemble",
   "google/owlvit-base-patch32",
 ];
 const DEFAULT_DETR_MODEL = "facebook/detr-resnet-101";
@@ -62,7 +76,7 @@ async function postInference(model: string, body: unknown): Promise<unknown> {
   const token = process.env.HUGGINGFACE_API_TOKEN;
   if (!token) throw new Error("HUGGINGFACE_API_TOKEN is not configured");
 
-  const res = await fetch(`${HF_ROUTER}/${model}`, {
+  const res = await fetchWithRetry(`${HF_ROUTER}/${model}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -150,6 +164,36 @@ async function tryZeroShotModel(
   return [];
 }
 
+/** Çöp kutusu — düşük eşik, yalnızca bin sorguları (hassas mod). */
+async function detectTrashBins(imageBytes: ArrayBuffer): Promise<HFDetection[]> {
+  const base64 = Buffer.from(imageBytes).toString("base64");
+  const threshold = BIN_DETECTION_THRESHOLD;
+  const models = [visionModel(), ...FALLBACK_OWL_MODELS.filter((m) => m !== visionModel())];
+
+  for (const model of models) {
+    const attempts = [
+      {
+        inputs: { image: base64, candidate_labels: BIN_QUERY_LABELS },
+        parameters: { threshold },
+      },
+      {
+        inputs: base64,
+        parameters: { threshold, candidate_labels: BIN_QUERY_LABELS },
+      },
+    ];
+    for (const body of attempts) {
+      try {
+        const data = await postInference(model, body);
+        const parsed = parseDetectionArray(data, threshold);
+        if (parsed.length > 0) return parsed.slice(0, 8);
+      } catch {
+        /* next */
+      }
+    }
+  }
+  return [];
+}
+
 async function detectZeroShot(imageBytes: ArrayBuffer): Promise<HFDetection[]> {
   const base64 = Buffer.from(imageBytes).toString("base64");
   const threshold = minVisionScore();
@@ -163,20 +207,26 @@ async function detectZeroShot(imageBytes: ArrayBuffer): Promise<HFDetection[]> {
 }
 
 /**
- * Zero-shot + DETR paralel — en iyi sonuçları birleştirir.
+ * Grounding DINO (endpoint) + OWL + DETR paralel — en iyi sonuçları birleştirir.
  */
 export async function detectUrbanObjects(
   imageBytes: ArrayBuffer,
 ): Promise<HFDetection[]> {
   const threshold = minVisionScore();
-  const [owl, detr] = await Promise.allSettled([
-    detectZeroShot(imageBytes),
-    detectObjects(imageBytes, Math.min(threshold, 0.2)),
-  ]);
+  const jobs: Promise<HFDetection[]>[] = [];
 
+  if (isGroundingDinoEnabled()) {
+    jobs.push(detectWithGroundingDino(imageBytes));
+  }
+  jobs.push(detectTrashBins(imageBytes));
+  jobs.push(detectZeroShot(imageBytes));
+  jobs.push(detectObjects(imageBytes, Math.min(threshold, 0.2)));
+
+  const results = await Promise.allSettled(jobs);
   const lists: HFDetection[][] = [];
-  if (owl.status === "fulfilled") lists.push(owl.value);
-  if (detr.status === "fulfilled") lists.push(detr.value);
+  for (const r of results) {
+    if (r.status === "fulfilled" && r.value.length > 0) lists.push(r.value);
+  }
 
   return mergeDetections(lists).slice(0, 30);
 }

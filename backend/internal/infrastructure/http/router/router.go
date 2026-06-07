@@ -80,6 +80,11 @@ func New(deps Dependencies) *chi.Mux {
 
 	// API v1 routes
 	r.Route("/api/v1", func(r chi.Router) {
+		// Public benchmark ingestion (CI / demo script)
+		if deps.CleanlinessHandler != nil {
+			r.Mount("/cleanliness/benchmark", deps.CleanlinessHandler.BenchmarkRoutes())
+		}
+
 		// Public auth routes (no JWT required)
 		r.Route("/auth", func(r chi.Router) {
 			if deps.IAMHandler != nil {

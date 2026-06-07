@@ -29,6 +29,7 @@ export type DetectionPoint = {
 };
 
 import type { Severity, SituationType } from "@/features/analyze/situations";
+import type { DirectionDetectionOverlay } from "@/features/detections/detectionOverlayUtils";
 
 export type DetectedObject = {
   label: string;
@@ -104,6 +105,8 @@ export type AnalysisResult = {
   objects: DetectedObject[];
   /** Number of directions scanned (front/right/back/left). */
   directionsScanned: number;
+  /** 360° panorama frames sent to AI (8×45°). */
+  panoramaFrames?: number;
   /** Temiz | Orta | Kirli */
   cleanliness: string;
   /** Short natural-language assessment (one line). */
@@ -117,13 +120,23 @@ export type AnalysisResult = {
   /** True when the assessment was AI-generated. */
   aiAssessment: boolean;
   /** Which engine produced the analysis. */
-  analysisModel: "hf-detection-llm" | "hf-vision" | "object-detection";
+  analysisModel:
+    | "hf-multi-agent"
+    | "hf-detection-llm"
+    | "hf-vision"
+    | "object-detection";
   /** Detected field situations (litter / road damage / ...). */
   situations: DetectedSituation[];
   /** Overall safety/urgency risk inferred from the situations. */
   safetyRisk: SafetyRisk;
-  /** Suggested municipal team based on the highest-severity situation. */
+  /** Suggested municipal team(s) — combined display string. */
   recommendedTeam: string;
+  /** All required teams when multiple issue types exist. */
+  recommendedTeams?: string[];
+  /** Street View capture resolution used for analysis. */
+  imageSize?: string;
+  /** Yön bazlı OWL/DETR bounding box overlay'leri (UI çerçevesi). */
+  detectionOverlays?: DirectionDetectionOverlay[];
   /** Dispatch status. */
   status: DispatchStatus;
   /** Team the record has been dispatched to (when assigned). */

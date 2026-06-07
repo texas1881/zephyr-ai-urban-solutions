@@ -18,6 +18,12 @@ export type UrbanQuery = {
 };
 
 export const URBAN_DETECTION_QUERIES: UrbanQuery[] = [
+  // Yalnızca taşma odaklı — "full trash can" genel sorguları dükkan/tabela FP üretir
+  { query: "overflowing trash bin", situationHint: "dolu_cop_kutusu" },
+  { query: "overflowing garbage bin", situationHint: "dolu_cop_kutusu" },
+  { query: "municipal waste bin overflowing", situationHint: "dolu_cop_kutusu" },
+  { query: "trash spilling from bin", situationHint: "dolu_cop_kutusu" },
+  { query: "street waste container overflowing", situationHint: "dolu_cop_kutusu" },
   { query: "litter on the ground", situationHint: "cop_kirliligi" },
   { query: "scattered trash on sidewalk", situationHint: "cop_kirliligi" },
   { query: "plastic bag on street", situationHint: "cop_kirliligi" },
@@ -29,8 +35,7 @@ export const URBAN_DETECTION_QUERIES: UrbanQuery[] = [
   { query: "discarded items on street", situationHint: "cop_kirliligi" },
   { query: "garbage pile", situationHint: "asiri_kirli" },
   { query: "pile of waste", situationHint: "asiri_kirli" },
-  { query: "overflowing trash bin", situationHint: "dolu_cop_kutusu" },
-  { query: "full dumpster", situationHint: "dolu_cop_kutusu" },
+  { query: "overflowing dumpster", situationHint: "dolu_cop_kutusu" },
   { query: "pothole in road", situationHint: "yol_hasari" },
   { query: "cracked pavement", situationHint: "yol_hasari" },
   { query: "damaged sidewalk", situationHint: "yol_hasari" },

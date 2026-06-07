@@ -8,10 +8,14 @@ import type {
   LabeledCount,
   SafetyRisk,
 } from "@/types/api";
+import { fetchWithRetry } from "@/lib/fetchWithRetry";
 import { geocodeAddress } from "@/services/geocodeService";
 import {
+  ANALYSIS_VIEW,
   buildStreetViewUrl,
+  getStreetViewSize,
   hasStreetViewImagery,
+  PANORAMA_360_DIRECTIONS,
   SCAN_DIRECTIONS,
 } from "@/services/streetViewService";
 import {
@@ -19,12 +23,13 @@ import {
   summarizeDetections,
 } from "@/services/huggingFaceService";
 import { runDetectionCascade } from "@/services/detectionCascade";
+import { buildDetectionOverlays } from "@/services/detectionOverlays";
 import type { DirectionImageInput } from "@/services/huggingFaceService";
 import type { SituationAnalysis } from "@/services/situationAnalysis";
 import { generateReport } from "@/services/reportService";
 import { groupLabeled } from "@/features/analyze/labels";
 import {
-  recommendTeam,
+  recommendTeams,
   SITUATION_LABEL,
 } from "@/features/analyze/situations";
 import { scoreToPriority } from "@/features/detections/priority";
@@ -32,7 +37,7 @@ import { scoreToPriority } from "@/features/detections/priority";
 // Uses Buffer + external AI calls — force Node runtime and give the function
 // enough headroom on Vercel to finish image fetch + inference + report.
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 type FetchedDirection = {
   label: string;
@@ -112,19 +117,30 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(error, { status: 404 });
     }
 
-    // Fetch all four direction images in parallel.
+    // 360° panorama (8×45°) — modele tam çevre; UI'da 4 ana yön.
     const fetched = (
       await Promise.all(
-        SCAN_DIRECTIONS.map(async ({ heading, label }): Promise<FetchedDirection | null> => {
-          const res = await fetch(buildStreetViewUrl({ lat, lng, heading }));
-          if (!res.ok) return null;
-          return {
-            label,
-            heading,
-            bytes: await res.arrayBuffer(),
-            mimeType: res.headers.get("content-type") ?? "image/jpeg",
-          };
-        }),
+        PANORAMA_360_DIRECTIONS.map(
+          async ({ heading, label }): Promise<FetchedDirection | null> => {
+            const res = await fetchWithRetry(
+              buildStreetViewUrl({
+                lat,
+                lng,
+                heading,
+                fov: ANALYSIS_VIEW.fov,
+                pitch: ANALYSIS_VIEW.pitch,
+                source: ANALYSIS_VIEW.source,
+              }),
+            );
+            if (!res.ok) return null;
+            return {
+              label,
+              heading,
+              bytes: await res.arrayBuffer(),
+              mimeType: res.headers.get("content-type") ?? "image/jpeg",
+            };
+          },
+        ),
       )
     ).filter((d): d is FetchedDirection => d !== null);
 
@@ -138,7 +154,8 @@ export async function GET(req: NextRequest) {
 
     const finalAddress =
       formattedAddress || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    const directionsScanned = fetched.length || SCAN_DIRECTIONS.length;
+    const directionsScanned = SCAN_DIRECTIONS.length;
+    const panoramaFrames = fetched.length || PANORAMA_360_DIRECTIONS.length;
     const baseUrl = `/api/streetview?lat=${lat}&lng=${lng}`;
 
     const input: DirectionImageInput[] = fetched.map((d) => ({
@@ -151,9 +168,11 @@ export async function GET(req: NextRequest) {
     const buildFromSituations = (
       sit: SituationAnalysis,
       model: AnalysisResult["analysisModel"] = "hf-detection-llm",
+      detectionOverlays?: AnalysisResult["detectionOverlays"],
     ): AnalysisResult => {
       const litterItems = situationsToItems(sit.situations);
-      const recommendedTeam = recommendTeam(sit.situations);
+      const teamRec = recommendTeams(sit.situations);
+      const recommendedTeam = teamRec.display;
       const assessment =
         sit.summary ||
         (sit.situations.length === 0
@@ -172,6 +191,7 @@ export async function GET(req: NextRequest) {
         contextItems: [],
         objects: flatten(litterItems),
         directionsScanned,
+        panoramaFrames,
         cleanliness: sit.cleanliness,
         assessment,
         aiReport: "",
@@ -182,6 +202,9 @@ export async function GET(req: NextRequest) {
         situations: sit.situations,
         safetyRisk: sit.safetyRisk,
         recommendedTeam,
+        recommendedTeams: teamRec.teams,
+        imageSize: getStreetViewSize(),
+        detectionOverlays,
         status: "pending",
         assignedTeam: "",
       };
@@ -190,11 +213,15 @@ export async function GET(req: NextRequest) {
     let result: AnalysisResult;
 
     try {
-      const { analysis, model } = await runDetectionCascade(
+      const { analysis, model, directions } = await runDetectionCascade(
         finalAddress,
         input,
       );
-      result = buildFromSituations(analysis, model);
+      result = buildFromSituations(
+        analysis,
+        model,
+        buildDetectionOverlays(directions),
+      );
     } catch {
       const perDirection = await Promise.all(
         fetched.map((d) => detectObjects(d.bytes)),
@@ -224,6 +251,7 @@ export async function GET(req: NextRequest) {
         contextItems: groupLabeled(allObjects, "context"),
         objects: allObjects,
         directionsScanned,
+        panoramaFrames,
         cleanliness,
         assessment:
           litterItems.length === 0

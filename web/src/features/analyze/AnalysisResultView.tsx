@@ -1,14 +1,10 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-import { useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Compass,
   Construction,
   Droplets,
   FileText,
-  Grid2x2,
   type LucideIcon,
   Send,
   ShieldAlert,
@@ -26,13 +22,13 @@ import { priorityColor, priorityLabel } from "@/features/detections/priority";
 import {
   SEVERITY_LABEL,
   SITUATION_LABEL,
+  SITUATION_TEAM,
   severityColor,
   type SituationType,
 } from "./situations";
-import { ImageLightbox } from "@/components/ImageLightbox";
+import { StreetViewExplorer } from "@/features/streetview/StreetViewExplorer";
+import { SPRING_BOUNCE, SPRING_SMOOTH } from "@/components/motion/springs";
 import { DensityGauge } from "./DensityGauge";
-
-const EMBED_KEY = process.env.NEXT_PUBLIC_MAPS_EMBED_KEY;
 
 const RISK_LABEL: Record<SafetyRisk, string> = {
   dusuk: "Düşük risk",
@@ -41,12 +37,11 @@ const RISK_LABEL: Record<SafetyRisk, string> = {
 };
 
 const RISK_COLOR: Record<SafetyRisk, string> = {
-  dusuk: "bg-white/10 text-emerald-300 ring-emerald-400/30",
+  dusuk: "bg-white/10 text-foreground/80 ring-white/20",
   orta: "bg-white/10 text-amber-300 ring-amber-400/30",
   yuksek: "bg-white/10 text-red-300 ring-red-400/30",
 };
 
-/** Real SVG icon per situation type (lucide). */
 const SITUATION_ICON: Record<SituationType, LucideIcon> = {
   temiz: ShieldCheck,
   cop_kirliligi: Trash2,
@@ -63,9 +58,7 @@ const SITUATION_ICON: Record<SituationType, LucideIcon> = {
 
 type Props = {
   result: AnalysisResult;
-  /** Team the record has been dispatched to (empty if not yet). */
   dispatchedTeam?: string;
-  /** Called when the user dispatches the recommended team. */
   onDispatch?: (team: string) => void;
 };
 
@@ -74,18 +67,21 @@ export function AnalysisResultView({
   dispatchedTeam = "",
   onDispatch,
 }: Props) {
-  const [pano, setPano] = useState(false);
-  const [lightbox, setLightbox] = useState<{
-    url: string;
-    label: string;
-  } | null>(null);
-
   const modelLabel =
-    result.analysisModel === "hf-detection-llm"
-      ? "Görüntü tanıma (OWL+DETR)"
-      : result.analysisModel === "hf-vision"
-        ? "Yapay zekâ görsel analizi (Qwen-VL)"
-        : "Nesne tespiti (DETR)";
+    result.analysisModel === "hf-multi-agent"
+      ? "Çoklu ajan konsensüs (Vision + Thinking + Arbiter)"
+      : result.analysisModel === "hf-detection-llm"
+        ? "Kanıta dayalı yapay zekâ (Qwen2.5)"
+        : result.analysisModel === "hf-vision"
+          ? "Görsel zeka analizi (Qwen-VL)"
+          : "Nesne tespiti (DETR)";
+
+  const teams =
+    result.recommendedTeams && result.recommendedTeams.length > 0
+      ? result.recommendedTeams
+      : result.recommendedTeam !== "—"
+        ? [result.recommendedTeam]
+        : [];
 
   const reportLabel =
     result.reportEngine === "hf" ? "Yapay zekâ yorum" : "Doğrulanmış özet";
@@ -95,285 +91,221 @@ export function AnalysisResultView({
     result.recommendedTeam !== "—" &&
     typeof onDispatch === "function";
 
-  const panoUrl = EMBED_KEY
-    ? `https://www.google.com/maps/embed/v1/streetview?key=${EMBED_KEY}&location=${result.lat},${result.lng}&heading=0&pitch=0&fov=90`
-    : null;
-
   return (
-    <>
-    {lightbox && (
-      <ImageLightbox
-        src={lightbox.url}
-        alt={`${result.address} — ${lightbox.label}`}
-        label={lightbox.label}
-        onClose={() => setLightbox(null)}
-      />
-    )}
-    <div className="glass-strong scroll-mt-24 overflow-hidden rounded-2xl">
-      <div className="overflow-hidden rounded-t-2xl">
-        {panoUrl && (
-          <div className="flex items-center justify-between gap-1 border-b border-line bg-black/40 px-3 py-2">
-            <span className="text-[10px] uppercase tracking-[0.14em] text-muted">
-              Sokak görüntüsü
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPano(false)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition ${
-                  !pano
-                    ? "bg-white text-black"
-                    : "text-muted hover:text-foreground"
-                }`}
-              >
-                <Grid2x2 size={13} />
-                4 Yön
-              </button>
-              <button
-                onClick={() => setPano(true)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition ${
-                  pano ? "bg-white text-black" : "text-muted hover:text-foreground"
-                }`}
-              >
-                <Compass size={13} />
-                360° Gezin
-              </button>
-            </div>
-          </div>
-        )}
-
-        {pano && panoUrl ? (
-          <div className="relative aspect-video w-full bg-black">
-            <iframe
-              title={`${result.address} 360° Street View`}
-              src={panoUrl}
-              className="h-full w-full border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              allowFullScreen
-            />
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-px bg-white/10 sm:grid-cols-4">
-            {result.directionImages.map((dir) => (
-              <button
-                key={dir.heading}
-                type="button"
-                onClick={() =>
-                  setLightbox({ url: dir.url, label: dir.label })
-                }
-                className="group relative aspect-[4/3] cursor-zoom-in bg-black text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
-                aria-label={`${dir.label} yönünü büyüt`}
-              >
-                <img
-                  src={dir.url}
-                  alt={`${result.address} — ${dir.label}`}
-                  className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03] group-hover:brightness-110"
-                />
-                <span className="absolute inset-0 bg-black/0 transition group-hover:bg-black/15" />
-                <span className="absolute left-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white backdrop-blur">
-                  {dir.label}
-                </span>
-                <span className="pointer-events-none absolute bottom-2 right-2 rounded-md bg-black/50 px-1.5 py-0.5 text-[10px] text-white/80 opacity-0 backdrop-blur transition group-hover:opacity-100">
-                  Büyüt
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+    <div className="glass-strong scroll-mt-24 rounded-2xl">
+      <StreetViewExplorer result={result} />
 
       <div className="border-t border-line">
         <div className="flex flex-col gap-6 p-6">
-        <div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-[11px] uppercase tracking-[0.18em] text-muted">
-              Analiz Sonucu
-            </span>
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${priorityColor[result.priority]}`}
-            >
-              {priorityLabel[result.priority]} öncelik
-            </span>
+          <div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11px] uppercase tracking-[0.18em] text-muted">
+                Analiz Sonucu
+              </span>
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${priorityColor[result.priority]}`}
+              >
+                {priorityLabel[result.priority]} öncelik
+              </span>
+            </div>
+            <h3 className="mt-1.5 text-xl font-semibold tracking-tight text-foreground">
+              {result.address}
+            </h3>
+            <p className="mt-0.5 text-xs text-muted">
+              {result.lat.toFixed(5)}, {result.lng.toFixed(5)} ·{" "}
+              {result.directionsScanned} ana yön
+              {result.panoramaFrames
+                ? ` · ${result.panoramaFrames} kare 360° AI taraması`
+                : ""}
+            </p>
           </div>
-          <h3 className="mt-1.5 text-xl font-semibold tracking-tight text-foreground">
-            {result.address}
-          </h3>
-          <p className="mt-0.5 text-xs text-muted">
-            {result.lat.toFixed(5)}, {result.lng.toFixed(5)} ·{" "}
-            {result.directionsScanned} yön tarandı (ön/arka/sağ/sol)
-          </p>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-6">
-          <DensityGauge score={result.densityScore} />
-          <div className="space-y-1.5 text-sm">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-6">
+            <DensityGauge score={result.densityScore} />
+            <div className="space-y-1.5 text-sm">
+              <div className="flex items-center gap-2">
+                <p className="text-foreground">
+                  Temizlik durumu:{" "}
+                  <span className="font-semibold">{result.cleanliness}</span>
+                </p>
+                {result.safetyRisk && (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${RISK_COLOR[result.safetyRisk]}`}
+                  >
+                    <ShieldAlert size={11} />
+                    {RISK_LABEL[result.safetyRisk]}
+                  </span>
+                )}
+              </div>
               <p className="text-foreground">
-                Temizlik durumu:{" "}
-                <span className="font-semibold">{result.cleanliness}</span>
+                <span className="text-2xl font-semibold tabular-nums">
+                  {result.situations.length || result.litterCount}
+                </span>{" "}
+                <span className="text-muted">tespit edilen durum</span>
               </p>
-              {result.safetyRisk && (
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${RISK_COLOR[result.safetyRisk]}`}
-                >
-                  <ShieldAlert size={11} />
-                  {RISK_LABEL[result.safetyRisk]}
+            </div>
+          </div>
+
+          {result.situations.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-foreground">
+                Tespit edilen durumlar
+              </p>
+              {result.situations.map((s, i) => {
+                const Icon = SITUATION_ICON[s.type] ?? Trash2;
+                return (
+                  <motion.div
+                    key={`${s.type}-${i}`}
+                    initial={{ opacity: 0, x: -12, scale: 0.98 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    transition={{ ...SPRING_SMOOTH, delay: i * 0.06 }}
+                    whileHover={{ y: -2 }}
+                    className="glass flex items-start justify-between gap-3 rounded-xl p-3"
+                  >
+                    <div className="flex min-w-0 gap-3">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10 text-foreground">
+                        <Icon size={15} />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium text-foreground">
+                            {SITUATION_LABEL[s.type]}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${severityColor[s.severity]}`}
+                          >
+                            {SEVERITY_LABEL[s.severity]}
+                          </span>
+                          <span className="rounded-full border border-white/15 bg-white/6 px-2 py-0.5 text-[10px] text-foreground/90">
+                            {SITUATION_TEAM[s.type]}
+                          </span>
+                          {s.location && (
+                            <span className="rounded-full border border-line bg-surface px-2 py-0.5 text-[10px] text-muted">
+                              {s.location}
+                            </span>
+                          )}
+                        </div>
+                        {s.description && (
+                          <p className="mt-0.5 text-xs text-muted">
+                            {s.description}
+                          </p>
+                        )}
+                        {s.recommendedAction && (
+                          <p className="mt-1 text-xs text-foreground/80">
+                            <span className="text-muted">Öneri: </span>
+                            {s.recommendedAction}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-xs tabular-nums text-muted">
+                        %{Math.round(s.confidence * 100)}
+                      </p>
+                      {s.direction && (
+                        <p className="text-[10px] uppercase tracking-wide text-muted">
+                          {s.direction}
+                        </p>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+
+          {teams.length > 0 && (
+            <div className="glass flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4">
+              <div>
+                <p className="text-xs text-muted">
+                  {teams.length > 1 ? "Önerilen ekipler" : "Önerilen ekip"}
+                </p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {teams.map((team) => (
+                    <span
+                      key={team}
+                      className="rounded-full border border-white/15 bg-white/8 px-2.5 py-1 text-xs font-medium text-foreground"
+                    >
+                      {team}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              {dispatchedTeam ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.08] px-3 py-1.5 text-xs font-medium text-foreground ring-1 ring-inset ring-white/10">
+                  <ShieldCheck size={13} />
+                  {dispatchedTeam} yönlendirildi
                 </span>
+              ) : (
+                canDispatch && (
+                  <motion.button
+                    onClick={() => onDispatch?.(teams[0])}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={SPRING_BOUNCE}
+                    className="btn-primary flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm"
+                  >
+                    <Send size={15} />
+                    {teams.length > 1
+                      ? "Birincil Ekip Yönlendir"
+                      : "Ekip Yönlendir"}
+                  </motion.button>
+                )
               )}
             </div>
-            <p className="text-foreground">
-              <span className="text-2xl font-semibold tabular-nums">
-                {result.situations.length || result.litterCount}
-              </span>{" "}
-              <span className="text-muted">tespit edilen durum</span>
-            </p>
-          </div>
-        </div>
+          )}
 
-        {/* Durum kartları */}
-        {result.situations.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-foreground">
-              Tespit edilen durumlar
-            </p>
-            {result.situations.map((s, i) => {
-              const Icon = SITUATION_ICON[s.type] ?? Trash2;
-              return (
-              <motion.div
-                key={`${s.type}-${i}`}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.05, duration: 0.25 }}
-                className="glass flex items-start justify-between gap-3 rounded-xl p-3"
-              >
-                <div className="flex min-w-0 gap-3">
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10 text-foreground">
-                    <Icon size={15} />
-                  </span>
-                  <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium text-foreground">
-                      {SITUATION_LABEL[s.type]}
-                    </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${severityColor[s.severity]}`}
-                    >
-                      {SEVERITY_LABEL[s.severity]}
-                    </span>
-                    {s.location && (
-                      <span className="rounded-full border border-line bg-surface px-2 py-0.5 text-[10px] text-muted">
-                        {s.location}
-                      </span>
-                    )}
-                  </div>
-                  {s.description && (
-                    <p className="mt-0.5 text-xs text-muted">{s.description}</p>
-                  )}
-                  {s.recommendedAction && (
-                    <p className="mt-1 text-xs text-foreground/80">
-                      <span className="text-muted">Öneri: </span>
-                      {s.recommendedAction}
-                    </p>
-                  )}
-                  </div>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-xs tabular-nums text-muted">
-                    %{Math.round(s.confidence * 100)}
-                  </p>
-                  {s.direction && (
-                    <p className="text-[10px] uppercase tracking-wide text-muted">
-                      {s.direction}
-                    </p>
-                  )}
-                </div>
-              </motion.div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Ekip yönlendirme */}
-        {result.recommendedTeam !== "—" && (
-          <div className="glass flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4">
-            <div>
-              <p className="text-xs text-muted">Önerilen ekip</p>
-              <p className="text-sm font-semibold text-foreground">
-                {result.recommendedTeam}
-              </p>
-            </div>
-            {dispatchedTeam ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/15 px-3 py-1.5 text-xs font-medium text-emerald-300 ring-1 ring-inset ring-emerald-400/30">
-                <ShieldCheck size={13} />
-                {dispatchedTeam} yönlendirildi
-              </span>
-            ) : (
-              canDispatch && (
-                <button
-                  onClick={() => onDispatch?.(result.recommendedTeam)}
-                  className="btn-primary flex items-center gap-2 rounded-lg px-4 py-2 text-sm"
-                >
-                  <Send size={15} />
-                  Ekip Yönlendir
-                </button>
-              )
-            )}
-          </div>
-        )}
-
-        <div className="glass rounded-2xl p-4">
-          <div className="mb-1.5 flex items-center gap-2">
-            <Sparkles size={14} className="text-foreground" />
-            <span className="text-xs font-semibold text-foreground">
-              Değerlendirme
-            </span>
-            <span className="rounded-full border border-line bg-surface px-1.5 py-0.5 text-[10px] text-muted">
-              {result.aiAssessment ? modelLabel : "otomatik"}
-            </span>
-          </div>
-          <p className="text-sm leading-6 text-foreground/90">
-            {result.assessment}
-          </p>
-        </div>
-
-        {/* Kapsamlı AI raporu */}
-        {result.aiReport && (
           <div className="glass rounded-2xl p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <FileText size={14} className="text-foreground" />
+            <div className="mb-1.5 flex items-center gap-2">
+              <Sparkles size={14} className="text-foreground" />
               <span className="text-xs font-semibold text-foreground">
-                Kapsamlı AI Raporu
+                Değerlendirme
               </span>
               <span className="rounded-full border border-line bg-surface px-1.5 py-0.5 text-[10px] text-muted">
-                {reportLabel}
+                {result.aiAssessment ? modelLabel : "otomatik"}
               </span>
             </div>
-            <p className="whitespace-pre-line text-sm leading-6 text-foreground/90">
-              {result.aiReport}
+            <p className="text-sm leading-6 text-foreground/90">
+              {result.assessment}
             </p>
           </div>
-        )}
 
-        {result.contextItems.length > 0 && (
-          <div>
-            <p className="mb-2 text-xs font-medium text-muted">
-              Ortam (kirlilik göstergesi değildir)
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {result.contextItems.map((g, i) => (
-                <span
-                  key={`${g.label}-${i}`}
-                  className="rounded-md border border-line bg-surface px-2 py-0.5 text-xs text-muted"
-                >
-                  {g.label} ×{g.count}
+          {result.aiReport && (
+            <div className="glass rounded-2xl p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <FileText size={14} className="text-foreground" />
+                <span className="text-xs font-semibold text-foreground">
+                  Kapsamlı AI Raporu
                 </span>
-              ))}
+                <span className="rounded-full border border-line bg-surface px-1.5 py-0.5 text-[10px] text-muted">
+                  {reportLabel}
+                </span>
+              </div>
+              <p className="whitespace-pre-line text-sm leading-6 text-foreground/90">
+                {result.aiReport}
+              </p>
             </div>
-          </div>
-        )}
+          )}
+
+          {result.contextItems.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-medium text-muted">
+                Ortam (kirlilik göstergesi değildir)
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {result.contextItems.map((g, i) => (
+                  <span
+                    key={`${g.label}-${i}`}
+                    className="rounded-md border border-line bg-surface px-2 py-0.5 text-xs text-muted"
+                  >
+                    {g.label} ×{g.count}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
-    </>
   );
 }

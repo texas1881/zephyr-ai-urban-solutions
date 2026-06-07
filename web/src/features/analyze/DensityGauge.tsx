@@ -1,3 +1,9 @@
+"use client";
+
+import { motion, useSpring, useTransform } from "framer-motion";
+import { useEffect } from "react";
+import { SPRING_SMOOTH } from "@/components/motion/springs";
+
 type Props = {
   score: number;
   size?: number;
@@ -13,7 +19,18 @@ export function DensityGauge({ score, size = 132 }: Props) {
   const radius = (size - 14) / 2;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.max(0, Math.min(100, score));
-  const offset = circumference - (clamped / 100) * circumference;
+
+  const springScore = useSpring(0, SPRING_SMOOTH);
+  useEffect(() => {
+    springScore.set(clamped);
+  }, [clamped, springScore]);
+
+  const offset = useTransform(springScore, (v) => {
+    const c = Math.max(0, Math.min(100, v));
+    return circumference - (c / 100) * circumference;
+  });
+
+  const displayScore = useTransform(springScore, (v) => Math.round(v));
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
@@ -26,7 +43,7 @@ export function DensityGauge({ score, size = 132 }: Props) {
           stroke="var(--color-line)"
           strokeWidth={10}
         />
-        <circle
+        <motion.circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
@@ -35,14 +52,13 @@ export function DensityGauge({ score, size = 132 }: Props) {
           strokeWidth={10}
           strokeLinecap="round"
           strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 0.6s ease" }}
+          style={{ strokeDashoffset: offset }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-semibold tabular-nums text-foreground">
-          {clamped}
-        </span>
+        <motion.span className="text-3xl font-semibold tabular-nums text-foreground">
+          {displayScore}
+        </motion.span>
         <span className="text-[10px] uppercase tracking-wide text-muted">
           yoğunluk
         </span>

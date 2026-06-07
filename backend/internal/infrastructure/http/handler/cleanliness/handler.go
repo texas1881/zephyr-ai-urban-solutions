@@ -18,13 +18,16 @@ var Teams = []string{"Temizlik Ekibi", "Yol Bakım Ekibi"}
 
 // Handler provides Cleanliness HTTP handlers.
 type Handler struct {
-	saveUC   *usecase.SaveRecordUseCase
-	listUC   *usecase.ListRecordsUseCase
-	statsUC  *usecase.GetStatsUseCase
-	deleteUC *usecase.DeleteRecordUseCase
-	clearUC  *usecase.ClearRecordsUseCase
-	assignUC *usecase.AssignTeamUseCase
-	statusUC *usecase.UpdateStatusUseCase
+	saveUC      *usecase.SaveRecordUseCase
+	listUC      *usecase.ListRecordsUseCase
+	statsUC     *usecase.GetStatsUseCase
+	deleteUC    *usecase.DeleteRecordUseCase
+	clearUC     *usecase.ClearRecordsUseCase
+	assignUC    *usecase.AssignTeamUseCase
+	statusUC    *usecase.UpdateStatusUseCase
+	saveBenchUC *usecase.SaveBenchmarkRunUseCase
+	listBenchUC *usecase.ListBenchmarkRunsUseCase
+	latestBenchUC *usecase.LatestBenchmarkRunUseCase
 }
 
 // NewHandler creates a new Cleanliness handler.
@@ -36,15 +39,21 @@ func NewHandler(
 	clearUC *usecase.ClearRecordsUseCase,
 	assignUC *usecase.AssignTeamUseCase,
 	statusUC *usecase.UpdateStatusUseCase,
+	saveBenchUC *usecase.SaveBenchmarkRunUseCase,
+	listBenchUC *usecase.ListBenchmarkRunsUseCase,
+	latestBenchUC *usecase.LatestBenchmarkRunUseCase,
 ) *Handler {
 	return &Handler{
-		saveUC:   saveUC,
-		listUC:   listUC,
-		statsUC:  statsUC,
-		deleteUC: deleteUC,
-		clearUC:  clearUC,
-		assignUC: assignUC,
-		statusUC: statusUC,
+		saveUC:        saveUC,
+		listUC:        listUC,
+		statsUC:       statsUC,
+		deleteUC:      deleteUC,
+		clearUC:       clearUC,
+		assignUC:      assignUC,
+		statusUC:      statusUC,
+		saveBenchUC:   saveBenchUC,
+		listBenchUC:   listBenchUC,
+		latestBenchUC: latestBenchUC,
 	}
 }
 
@@ -59,6 +68,15 @@ func (h *Handler) Routes() chi.Router {
 	r.Post("/records/{id}/assign", h.Assign)
 	r.Post("/records/{id}/status", h.UpdateStatus)
 	r.Get("/teams", h.ListTeams)
+	return r
+}
+
+// BenchmarkRoutes returns public benchmark routes (CI script, no JWT).
+func (h *Handler) BenchmarkRoutes() chi.Router {
+	r := chi.NewRouter()
+	r.Post("/runs", h.CreateBenchmarkRun)
+	r.Get("/runs", h.ListBenchmarkRuns)
+	r.Get("/runs/latest", h.LatestBenchmarkRun)
 	return r
 }
 
@@ -152,4 +170,39 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 // ListTeams returns the static list of municipal field teams.
 func (h *Handler) ListTeams(w http.ResponseWriter, _ *http.Request) {
 	response.JSON(w, http.StatusOK, Teams)
+}
+
+// CreateBenchmarkRun persists a benchmark execution report.
+func (h *Handler) CreateBenchmarkRun(w http.ResponseWriter, r *http.Request) {
+	var req dto.CreateBenchmarkRunRequest
+	if err := validator.DecodeAndValidate(r, &req); err != nil {
+		response.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	run, err := h.saveBenchUC.Execute(r.Context(), req)
+	if err != nil {
+		response.Error(w, err)
+		return
+	}
+	response.Created(w, run)
+}
+
+// ListBenchmarkRuns returns stored benchmark runs.
+func (h *Handler) ListBenchmarkRuns(w http.ResponseWriter, r *http.Request) {
+	runs, err := h.listBenchUC.Execute(r.Context())
+	if err != nil {
+		response.Error(w, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, runs)
+}
+
+// LatestBenchmarkRun returns the most recent benchmark report.
+func (h *Handler) LatestBenchmarkRun(w http.ResponseWriter, r *http.Request) {
+	run, err := h.latestBenchUC.Execute(r.Context())
+	if err != nil {
+		response.Error(w, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, run)
 }

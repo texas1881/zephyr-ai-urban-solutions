@@ -75,22 +75,11 @@ export function severityRank(s: Severity): number {
 
 /** Tailwind classes for a severity badge (dark glass friendly). */
 export const severityColor: Record<Severity, string> = {
-  dusuk: "bg-white/10 text-emerald-300 ring-emerald-400/30",
+  dusuk: "bg-white/10 text-foreground/80 ring-white/20",
   orta: "bg-white/10 text-amber-300 ring-amber-400/30",
   yuksek: "bg-white/10 text-orange-300 ring-orange-400/30",
   kritik: "bg-white/10 text-red-300 ring-red-400/30",
 };
 
-/**
- * Picks the recommended team from a list of detected situations:
- * the team of the highest-severity, non-clean situation.
- */
-export function recommendTeam(
-  situations: Array<{ type: SituationType; severity: Severity }>,
-): string {
-  const actionable = situations
-    .filter((s) => s.type !== "temiz")
-    .sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
-  if (actionable.length === 0) return "—";
-  return SITUATION_TEAM[actionable[0].type];
-}
+export { recommendTeam, recommendTeams } from "@/features/analyze/teamRouting";
+export type { TeamRecommendation } from "@/features/analyze/teamRouting";

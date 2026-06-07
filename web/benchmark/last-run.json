@@ -1,0 +1,196 @@
+{
+  "runId": "bench-1780824163110",
+  "startedAt": "2026-06-07T09:16:33.207Z",
+  "completedAt": "2026-06-07T09:22:43.110Z",
+  "baseUrl": "http://localhost:3001",
+  "imageSize": "640x640",
+  "total": 12,
+  "passed": 11,
+  "failed": 1,
+  "score": 9.2,
+  "precision": 92,
+  "cases": [
+    {
+      "caseId": "taksim",
+      "address": "Taksim Meydanı Beyoğlu İstanbul",
+      "pass": true,
+      "reasons": [],
+      "actual": {
+        "situationCount": 0,
+        "types": [],
+        "teams": [],
+        "analysisModel": "hf-multi-agent",
+        "cleanliness": "Temiz",
+        "densityScore": 0
+      },
+      "latencyMs": 29143
+    },
+    {
+      "caseId": "besiktas",
+      "address": "Beşiktaş Meydanı İstanbul",
+      "pass": true,
+      "reasons": [],
+      "actual": {
+        "situationCount": 0,
+        "types": [],
+        "teams": [],
+        "analysisModel": "hf-multi-agent",
+        "cleanliness": "Temiz",
+        "densityScore": 0
+      },
+      "latencyMs": 35731
+    },
+    {
+      "caseId": "uskudar",
+      "address": "Üsküdar Meydanı İstanbul",
+      "pass": true,
+      "reasons": [],
+      "actual": {
+        "situationCount": 0,
+        "types": [],
+        "teams": [],
+        "analysisModel": "hf-multi-agent",
+        "cleanliness": "Temiz",
+        "densityScore": 0
+      },
+      "latencyMs": 29874
+    },
+    {
+      "caseId": "sultanahmet",
+      "address": "Sultanahmet Meydanı Fatih İstanbul",
+      "pass": true,
+      "reasons": [],
+      "actual": {
+        "situationCount": 0,
+        "types": [],
+        "teams": [],
+        "analysisModel": "hf-multi-agent",
+        "cleanliness": "Temiz",
+        "densityScore": 0
+      },
+      "latencyMs": 30580
+    },
+    {
+      "caseId": "nisantasi",
+      "address": "Teşvikiye Caddesi Şişli İstanbul",
+      "pass": true,
+      "reasons": [],
+      "actual": {
+        "situationCount": 0,
+        "types": [],
+        "teams": [],
+        "analysisModel": "hf-multi-agent",
+        "cleanliness": "Temiz",
+        "densityScore": 0
+      },
+      "latencyMs": 4890
+    },
+    {
+      "caseId": "bagdat",
+      "address": "Bağdat Caddesi Caddebostan İstanbul",
+      "pass": true,
+      "reasons": [],
+      "actual": {
+        "situationCount": 0,
+        "types": [],
+        "teams": [],
+        "analysisModel": "hf-multi-agent",
+        "cleanliness": "Temiz",
+        "densityScore": 0
+      },
+      "latencyMs": 30494
+    },
+    {
+      "caseId": "bebek",
+      "address": "Bebek Sahili Beşiktaş İstanbul",
+      "pass": true,
+      "reasons": [],
+      "actual": {
+        "situationCount": 0,
+        "types": [],
+        "teams": [],
+        "analysisModel": "hf-multi-agent",
+        "cleanliness": "Temiz",
+        "densityScore": 0
+      },
+      "latencyMs": 26418
+    },
+    {
+      "caseId": "levent",
+      "address": "Büyükdere Caddesi Levent İstanbul",
+      "pass": true,
+      "reasons": [],
+      "actual": {
+        "situationCount": 0,
+        "types": [],
+        "teams": [],
+        "analysisModel": "hf-multi-agent",
+        "cleanliness": "Temiz",
+        "densityScore": 0
+      },
+      "latencyMs": 28441
+    },
+    {
+      "caseId": "sisli",
+      "address": "Halaskargazi Caddesi Şişli İstanbul",
+      "pass": true,
+      "reasons": [],
+      "actual": {
+        "situationCount": 0,
+        "types": [],
+        "teams": [],
+        "analysisModel": "hf-multi-agent",
+        "cleanliness": "Temiz",
+        "densityScore": 0
+      },
+      "latencyMs": 31036
+    },
+    {
+      "caseId": "atasehir",
+      "address": "Ataşehir İstanbul",
+      "pass": false,
+      "reasons": [
+        "Beklenen tip yok: cop_kirliligi"
+      ],
+      "actual": {
+        "situationCount": 0,
+        "types": [],
+        "teams": [],
+        "analysisModel": "hf-multi-agent",
+        "cleanliness": "Temiz",
+        "densityScore": 0
+      },
+      "latencyMs": 42412
+    },
+    {
+      "caseId": "kadikoy",
+      "address": "Kadıköy Rıhtım İstanbul",
+      "pass": true,
+      "reasons": [],
+      "actual": {
+        "situationCount": 0,
+        "types": [],
+        "teams": [],
+        "analysisModel": "hf-multi-agent",
+        "cleanliness": "Temiz",
+        "densityScore": 0
+      },
+      "latencyMs": 32573
+    },
+    {
+      "caseId": "eminonu",
+      "address": "Eminönü Meydanı Fatih İstanbul",
+      "pass": true,
+      "reasons": [],
+      "actual": {
+        "situationCount": 0,
+        "types": [],
+        "teams": [],
+        "analysisModel": "hf-multi-agent",
+        "cleanliness": "Temiz",
+        "densityScore": 0
+      },
+      "latencyMs": 30213
+    }
+  ]
+}

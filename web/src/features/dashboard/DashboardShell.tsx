@@ -1,35 +1,66 @@
 "use client";
 
-import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  Database,
-  LayoutDashboard,
-  LogOut,
-  MapPinned,
-  ScanSearch,
-} from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { ViewPanel } from "@/components/layout/ViewPanel";
+import { ModuleCard, type ModuleBadgeState } from "@/components/ModuleCard";
+import { SpringPress } from "@/components/motion/SpringPress";
+import { LiveToast, type ToastState } from "@/components/ui/LiveToast";
+import { LogOut, MapPinned } from "lucide-react";
 import type { DetectionPoint } from "@/types/api";
 import { DetectionCard } from "@/features/detections/DetectionCard";
 import { SummaryBar } from "@/features/detections/SummaryBar";
 import { AnalyzePanel } from "@/features/analyze/AnalyzePanel";
 import { RecordsView } from "@/features/records/RecordsView";
 import { useRecords } from "@/features/records/useRecords";
-import { DynamicNav, type NavItem } from "@/features/navigation/DynamicNav";
-import { ModuleCard } from "@/components/ModuleCard";
+import type { AnalysisUiState } from "@/features/analyze/AnalyzePanel";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { LoginView } from "@/features/auth/LoginView";
+import type { NavSignal } from "./HomeShell";
 
-const NAV_ITEMS: NavItem[] = [
-  { id: "analiz", label: "Analiz", icon: ScanSearch },
-  { id: "kayitlar", label: "Kayıtlar", icon: Database },
-  { id: "pano", label: "Pano", icon: LayoutDashboard },
-];
+type RecordsStore = ReturnType<typeof useRecords>;
 
-export function DashboardShell() {
-  const [view, setView] = useState("analiz");
+type Props = {
+  view: string;
+  tabDirection?: number;
+  onViewChange: (id: string) => void;
+  onNavSignal?: (signal: NavSignal) => void;
+  recordsStore: RecordsStore;
+};
+
+export function DashboardShell({
+  view,
+  tabDirection = 1,
+  onViewChange,
+  onNavSignal,
+  recordsStore,
+}: Props) {
+  const [analyzeBadge, setAnalyzeBadge] = useState<ModuleBadgeState>("live");
+  const [toast, setToast] = useState<ToastState>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleAnalyzeUi = useCallback((state: AnalysisUiState) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setAnalyzeBadge(state);
+
+    if (state === "loading") {
+      setToast({ kind: "loading", message: "Analiz sürüyor…" });
+      return;
+    }
+
+    if (state === "success") {
+      setToast({ kind: "success", message: "Başarılı — analiz tamamlandı" });
+      toastTimer.current = setTimeout(() => {
+        setToast(null);
+        setAnalyzeBadge("live");
+      }, 3000);
+      return;
+    }
+
+    setToast(null);
+  }, []);
+
   const { records, addRecord, removeRecord, assignTeam, setStatus, clear } =
-    useRecords();
+    recordsStore;
   const { user, loading, backendEnabled, logout } = useAuth();
 
   // Priority board is driven by the REAL accumulated analysis records
@@ -64,6 +95,8 @@ export function DashboardShell() {
 
   return (
     <>
+      <LiveToast toast={toast} />
+
       {backendEnabled && user && (
         <div className="mb-4 flex items-center justify-end gap-3 text-xs text-muted">
           <span>
@@ -79,26 +112,19 @@ export function DashboardShell() {
         </div>
       )}
 
-      <DynamicNav items={NAV_ITEMS} active={view} onChange={setView} />
-
-      {/* Dynamic Island altında boşluk — içerik menünün altına girmez */}
-      <div className="h-16 shrink-0" aria-hidden />
-
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={view}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-        >
+      <ViewPanel viewKey={view} direction={tabDirection}>
           {view === "analiz" && (
             <ModuleCard
               title="Çevre Analizi"
               subtitle="Adres gir → Street View → yapay zekâ ile çöp/kirlilik tespiti"
-              badge="Canlı"
+              badgeState={analyzeBadge}
             >
-              <AnalyzePanel onAnalyzed={addRecord} onDispatch={assignTeam} />
+              <AnalyzePanel
+                onAnalyzed={addRecord}
+                onDispatch={assignTeam}
+                onNavSignal={onNavSignal}
+                onUiState={handleAnalyzeUi}
+              />
             </ModuleCard>
           )}
 
@@ -134,12 +160,12 @@ export function DashboardShell() {
                     Analiz sekmesinden bir adres tarayın; sonuçlar burada
                     kirlilik önceliğine göre otomatik sıralanır.
                   </p>
-                  <button
-                    onClick={() => setView("analiz")}
+                  <SpringPress
+                    onClick={() => onViewChange("analiz")}
                     className="btn-primary mt-2 rounded-xl px-4 py-2 text-sm"
                   >
                     Analize başla
-                  </button>
+                  </SpringPress>
                 </div>
               ) : (
                 <>
@@ -159,8 +185,7 @@ export function DashboardShell() {
               )}
             </ModuleCard>
           )}
-        </motion.div>
-      </AnimatePresence>
+      </ViewPanel>
     </>
   );
 }

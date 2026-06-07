@@ -1,0 +1,13 @@
+id,address,lat,lng,expected_clean,expected_types,min_situations,max_situations,forbidden_types,notes
+taksim,Taksim Meydanı Beyoğlu İstanbul,,,false,,0,2,,Merkez meydan — aşırı tespit olmamalı (FP kontrol)
+besiktas,Beşiktaş Meydanı İstanbul,,,false,,0,2,,Merkez — düşük tespit beklenir
+uskudar,Üsküdar Meydanı İstanbul,,,false,,0,2,,Sahil meydanı — temiz/az
+sultanahmet,Sultanahmet Meydanı Fatih İstanbul,,,false,,0,2,,Turistik meydan — abartılı tespit olmamalı
+nisantasi,Teşvikiye Caddesi Şişli İstanbul,,,false,,0,2,,Bakımlı cadde — temiz beklenir
+bagdat,Bağdat Caddesi Caddebostan İstanbul,,,false,,0,2,,Bakımlı cadde — düşük yoğunluk
+bebek,Bebek Sahili Beşiktaş İstanbul,,,false,,0,2,,Sahil bandı — temiz
+levent,Büyükdere Caddesi Levent İstanbul,,,false,,0,2,,İş merkezi aksı — bakımlı
+sisli,Halaskargazi Caddesi Şişli İstanbul,,,false,,0,3,,Yoğun cadde — orta tolerans
+atasehir,Ataşehir İstanbul,,,false,cop_kirliligi,0,3,,Görünür atık yakalanmalı (recall testi)
+kadikoy,Kadıköy Rıhtım İstanbul,,,false,,0,3,,Yoğun iskele bölgesi — orta tolerans
+eminonu,Eminönü Meydanı Fatih İstanbul,,,false,,0,3,,Çok yoğun hub — üst sınır kontrolü

@@ -24,16 +24,19 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	// Wire the Cleanliness slice: in-memory repo -> use cases -> HTTP handler.
-	repo := memCleanliness.NewMemoryRecordRepository()
+	recordRepo := memCleanliness.NewMemoryRecordRepository()
+	benchmarkRepo := memCleanliness.NewMemoryBenchmarkRepository()
 	handler := cleanlinessHandler.NewHandler(
-		cleanlinessUC.NewSaveRecordUseCase(repo),
-		cleanlinessUC.NewListRecordsUseCase(repo),
-		cleanlinessUC.NewGetStatsUseCase(repo),
-		cleanlinessUC.NewDeleteRecordUseCase(repo),
-		cleanlinessUC.NewClearRecordsUseCase(repo),
-		cleanlinessUC.NewAssignTeamUseCase(repo),
-		cleanlinessUC.NewUpdateStatusUseCase(repo),
+		cleanlinessUC.NewSaveRecordUseCase(recordRepo),
+		cleanlinessUC.NewListRecordsUseCase(recordRepo),
+		cleanlinessUC.NewGetStatsUseCase(recordRepo),
+		cleanlinessUC.NewDeleteRecordUseCase(recordRepo),
+		cleanlinessUC.NewClearRecordsUseCase(recordRepo),
+		cleanlinessUC.NewAssignTeamUseCase(recordRepo),
+		cleanlinessUC.NewUpdateStatusUseCase(recordRepo),
+		cleanlinessUC.NewSaveBenchmarkRunUseCase(benchmarkRepo),
+		cleanlinessUC.NewListBenchmarkRunsUseCase(benchmarkRepo),
+		cleanlinessUC.NewLatestBenchmarkRunUseCase(benchmarkRepo),
 	)
 
 	r := chi.NewRouter()
@@ -51,6 +54,7 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"alive"}`))
 	})
+	r.Mount("/api/v1/cleanliness/benchmark", handler.BenchmarkRoutes())
 	r.Mount("/api/v1/cleanliness", handler.Routes())
 
 	port := os.Getenv("PORT")

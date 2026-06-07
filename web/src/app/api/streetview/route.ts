@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buildStreetViewUrl } from "@/services/streetViewService";
+import {
+  buildStreetViewUrl,
+  getStreetViewSize,
+} from "@/services/streetViewService";
 
 /**
  * Proxies a Google Street View Static image so the API key stays server-only.
@@ -19,7 +22,13 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const imageUrl = buildStreetViewUrl({ lat, lng, heading, size: "640x400" });
+  const sizeParam = searchParams.get("size")?.trim();
+  const imageUrl = buildStreetViewUrl({
+    lat,
+    lng,
+    heading,
+    size: sizeParam || getStreetViewSize(),
+  });
   const imageRes = await fetch(imageUrl);
 
   if (!imageRes.ok) {

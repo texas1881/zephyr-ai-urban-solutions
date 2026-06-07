@@ -216,6 +216,7 @@ func buildDependencies(
 	// Cleanliness context uses an in-memory store, so it works with or without
 	// a database (data-accumulation API for the Zephyr web app).
 	cleanlinessRepo := memCleanliness.NewMemoryRecordRepository()
+	benchmarkRepo := memCleanliness.NewMemoryBenchmarkRepository()
 	deps.CleanlinessHandler = cleanlinessHandler.NewHandler(
 		cleanlinessUC.NewSaveRecordUseCase(cleanlinessRepo),
 		cleanlinessUC.NewListRecordsUseCase(cleanlinessRepo),
@@ -224,6 +225,9 @@ func buildDependencies(
 		cleanlinessUC.NewClearRecordsUseCase(cleanlinessRepo),
 		cleanlinessUC.NewAssignTeamUseCase(cleanlinessRepo),
 		cleanlinessUC.NewUpdateStatusUseCase(cleanlinessRepo),
+		cleanlinessUC.NewSaveBenchmarkRunUseCase(benchmarkRepo),
+		cleanlinessUC.NewListBenchmarkRunsUseCase(benchmarkRepo),
+		cleanlinessUC.NewLatestBenchmarkRunUseCase(benchmarkRepo),
 	)
 
 	if db == nil {

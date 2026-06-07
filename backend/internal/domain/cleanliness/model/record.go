@@ -45,9 +45,12 @@ type Record struct {
 	Objects       []DetectedObject `json:"objects"`
 	// Field-management state
 	Situations      []Situation `json:"situations"`
-	SafetyRisk      string      `json:"safetyRisk,omitempty"`
-	RecommendedTeam string      `json:"recommendedTeam"`
-	Status          string      `json:"status"`
+	SafetyRisk       string   `json:"safetyRisk,omitempty"`
+	RecommendedTeam  string   `json:"recommendedTeam"`
+	RecommendedTeams []string `json:"recommendedTeams,omitempty"`
+	AnalysisModel    string   `json:"analysisModel,omitempty"`
+	ImageSize        string   `json:"imageSize,omitempty"`
+	Status           string   `json:"status"`
 	AssignedTeam    string      `json:"assignedTeam"`
 	Note            string      `json:"note"`
 	CreatedAt       time.Time   `json:"createdAt"`

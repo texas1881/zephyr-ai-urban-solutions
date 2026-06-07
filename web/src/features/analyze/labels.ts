@@ -2,31 +2,17 @@
  * Shared, dependency-free label helpers used by both server (detection /
  * assessment) and client (result view).
  *
- * The detection model is COCO-pretrained, so it returns generic objects.
- * We treat ONLY disposable/consumable items as litter proxies. People,
- * vehicles, street furniture and infrastructure (fire hydrant, bench,
- * traffic light, ...) are context — NOT pollution.
+ * COCO/DETR yalnızca sokakta atık olabilecek tek kullanımlık nesneleri
+ * işaret eder. Çanta, kitap, araç, insan vb. bağlamdır — kirlilik değildir.
  */
 
-/** COCO labels that act as litter / waste proxies. */
+/** COCO etiketleri — yalnızca tek kullanımlık/atık proxy'leri. */
 export const LITTER_LABELS = new Set<string>([
   "bottle",
   "cup",
   "wine glass",
   "bowl",
   "can",
-  "banana",
-  "apple",
-  "orange",
-  "sandwich",
-  "pizza",
-  "donut",
-  "cake",
-  "fork",
-  "knife",
-  "spoon",
-  "book",
-  "handbag",
 ]);
 
 const LABEL_TR: Record<string, string> = {
@@ -80,7 +66,7 @@ const CONTEXT_VEHICLES = new Set([
 ]);
 
 export function isLitter(label: string): boolean {
-  return LITTER_LABELS.has(label);
+  return LITTER_LABELS.has(label.toLowerCase().trim());
 }
 
 export function isPerson(label: string): boolean {
