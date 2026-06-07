@@ -18,6 +18,15 @@ import type { SituationType } from "@/features/analyze/situations";
 const MIN_DETECTION_SCORE = 0.28;
 const MIN_BIN_DETECTION_SCORE = 0.42;
 const MIN_COCO_LITTER_SCORE = 0.55;
+const MIN_SURFACE_RECALL_SCORE = 0.18;
+
+const LOW_THRESHOLD_TYPES = new Set<SituationType>([
+  "grafiti",
+  "kaldirim_isgali",
+  "moloz_hafriyat",
+  "cop_kirliligi",
+  "asiri_kirli",
+]);
 
 /** COCO/DETR — yalnızca sıkı atık proxy'leri */
 const COCO_SITUATION: Record<string, SituationType> = {
@@ -38,6 +47,9 @@ function passesScoreGate(det: HFDetection): boolean {
     const q = matchQuery(det.label);
     if (q?.situationHint === "dolu_cop_kutusu") {
       return det.score >= MIN_BIN_DETECTION_SCORE;
+    }
+    if (q && LOW_THRESHOLD_TYPES.has(q.situationHint)) {
+      return det.score >= MIN_SURFACE_RECALL_SCORE;
     }
     return det.score >= MIN_DETECTION_SCORE;
   }

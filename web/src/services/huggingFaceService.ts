@@ -20,6 +20,15 @@ const BIN_QUERY_LABELS = URBAN_DETECTION_QUERIES.filter(
 ).map((q) => q.query);
 
 const BIN_DETECTION_THRESHOLD = 0.42;
+const SURFACE_RECALL_THRESHOLD = 0.18;
+
+const SURFACE_QUERY_LABELS = URBAN_DETECTION_QUERIES.filter((q) =>
+  ["grafiti", "kaldirim_isgali", "moloz_hafriyat", "cop_kirliligi", "asiri_kirli"].includes(
+    q.situationHint,
+  ),
+)
+  .map((q) => q.query)
+  .filter((q) => !BIN_QUERY_LABELS.includes(q));
 
 const HF_ROUTER = "https://router.huggingface.co/hf-inference/models";
 
@@ -194,6 +203,38 @@ async function detectTrashBins(imageBytes: ArrayBuffer): Promise<HFDetection[]> 
   return [];
 }
 
+/** Grafiti, kaldırım işgali ve atık — düşük eşikli ikinci tarama. */
+async function detectSurfaceRecall(
+  imageBytes: ArrayBuffer,
+): Promise<HFDetection[]> {
+  const base64 = Buffer.from(imageBytes).toString("base64");
+  const threshold = SURFACE_RECALL_THRESHOLD;
+  const models = [visionModel(), ...FALLBACK_OWL_MODELS.filter((m) => m !== visionModel())];
+
+  for (const model of models) {
+    const attempts = [
+      {
+        inputs: { image: base64, candidate_labels: SURFACE_QUERY_LABELS },
+        parameters: { threshold },
+      },
+      {
+        inputs: base64,
+        parameters: { threshold, candidate_labels: SURFACE_QUERY_LABELS },
+      },
+    ];
+    for (const body of attempts) {
+      try {
+        const data = await postInference(model, body);
+        const parsed = parseDetectionArray(data, threshold);
+        if (parsed.length > 0) return parsed.slice(0, 16);
+      } catch {
+        /* next */
+      }
+    }
+  }
+  return [];
+}
+
 async function detectZeroShot(imageBytes: ArrayBuffer): Promise<HFDetection[]> {
   const base64 = Buffer.from(imageBytes).toString("base64");
   const threshold = minVisionScore();
@@ -219,6 +260,7 @@ export async function detectUrbanObjects(
     jobs.push(detectWithGroundingDino(imageBytes));
   }
   jobs.push(detectTrashBins(imageBytes));
+  jobs.push(detectSurfaceRecall(imageBytes));
   jobs.push(detectZeroShot(imageBytes));
   jobs.push(detectObjects(imageBytes, Math.min(threshold, 0.2)));
 

@@ -23,6 +23,12 @@ GÖREV:
 6. En fazla 4 onaylı durum; emin olmadığın bulguyu çıkar
 7. Hiçbiri görselde doğrulanmıyorsa situations = []
 
+ONAYLA (görselde NET ise reddetme):
+- Duvarlarda renkli spray paint, tag veya geniş grafiti → grafiti
+- Kaldırımda sarılmış kablo, hortum, istiflenmiş kutu veya ekipman → kaldirim_isgali veya cop_kirliligi
+- İnşaat malzemesi, moloz veya terk edilmiş kutu yığını → moloz_hafriyat veya cop_kirliligi
+- Dar sokak/ara sokakta bile bu bulgular geçerlidir — "turistik alan" diye atlama
+
 YANLIŞ POZİTİF — REDDET:
 - İnsan, araç, çanta, güvercin, normal meydan kalabalığı
 - Gölge veya yansıma = su birikintisi DEĞİL

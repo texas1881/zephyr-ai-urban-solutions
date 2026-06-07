@@ -20,9 +20,9 @@ const TYPE_MIN_CONFIDENCE: Partial<Record<SituationType, number>> = {
   su_birikintisi: 0.72,
   moloz_hafriyat: 0.65,
   bozuk_tabela: 0.65,
-  kaldirim_isgali: 0.62,
+  kaldirim_isgali: 0.55,
   yabani_ot: 0.6,
-  grafiti: 0.6,
+  grafiti: 0.55,
 };
 
 const SEVERITY_WEIGHT: Record<string, number> = {

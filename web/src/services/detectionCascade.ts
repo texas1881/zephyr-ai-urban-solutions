@@ -9,11 +9,9 @@ import {
   cleanSituationAnalysis,
   hasSignificantDetections,
   filterSignificantDetections,
+  synthesizeFromDetectionsRuleBased,
 } from "@/services/ruleBasedSynthesis";
-import {
-  formatDetectionHints,
-  hasStrongUrbanSignals,
-} from "@/services/detectionHints";
+import { formatDetectionHints } from "@/services/detectionHints";
 import type {
   DirectionDetections,
   DirectionImageInput,
@@ -32,6 +30,19 @@ type CascadeResult = {
 const CONSENSUS_OPTS = {
   minConfidence: 0.55,
   minLowSeverity: 0.62,
+  maxSituations: 4,
+};
+
+/** Thinking ajanı aşırı reddettiğinde VLM taslağını geri çağır. */
+const RECALL_OPTS = {
+  minConfidence: 0.56,
+  minLowSeverity: 0.54,
+  maxSituations: 4,
+};
+
+const DETECTION_LLM_OPTS = {
+  minConfidence: 0.48,
+  minLowSeverity: 0.5,
   maxSituations: 4,
 };
 
@@ -99,10 +110,11 @@ export async function runDetectionCascade(
     directionsResult.status === "fulfilled" ? directionsResult.value : [];
 
   if (vlmResult.status === "fulfilled") {
+    const vlmDraft = vlmResult.value;
     const consensus = await runMultiAgentConsensus(
       address,
       input,
-      vlmResult.value,
+      vlmDraft,
       directions,
     );
 
@@ -110,12 +122,20 @@ export async function runDetectionCascade(
       return { analysis: consensus, model: "hf-multi-agent", directions };
     }
 
-    if (directions.length === 0 || !hasStrongUrbanSignals(directions)) {
-      return { analysis: consensus, model: "hf-multi-agent", directions };
+    if (hasFindings(vlmDraft)) {
+      const recalled = validateSituationAnalysis(vlmDraft, RECALL_OPTS);
+      if (hasFindings(recalled)) {
+        return { analysis: recalled, model: "hf-multi-agent", directions };
+      }
     }
   }
 
   if (directions.length > 0) {
+    const ruleBased = synthesizeFromDetectionsRuleBased(address, directions);
+    if (hasFindings(ruleBased)) {
+      return { analysis: ruleBased, model: "hf-detection-llm", directions };
+    }
+
     const filtered = filterSignificantDetections(directions);
     if (hasSignificantDetections(filtered)) {
       try {
@@ -129,10 +149,22 @@ export async function runDetectionCascade(
         if (hasFindings(reviewed)) {
           return { analysis: reviewed, model: "hf-detection-llm", directions };
         }
+        const direct = validateSituationAnalysis(synth, DETECTION_LLM_OPTS);
+        if (hasFindings(direct)) {
+          return { analysis: direct, model: "hf-detection-llm", directions };
+        }
       } catch {
-        /* temiz */
+        /* kanıt yolu başarısız */
       }
     }
+  }
+
+  if (vlmResult.status === "fulfilled") {
+    return {
+      analysis: validateSituationAnalysis(vlmResult.value, CONSENSUS_OPTS),
+      model: "hf-multi-agent",
+      directions,
+    };
   }
 
   return {

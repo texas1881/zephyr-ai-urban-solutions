@@ -37,8 +37,8 @@ TESPİT EDİLECEK DURUM TİPLERİ (görüntüde görünüyorsa raporla):
 - dolu_cop_kutusu: YALNIZCA görselde NET çöp kutusu/konteyner VE üstünden/kenarından taşan atık görülüyorsa raporla
 - yol_hasari: belirgin çukur, geniş çatlak veya ciddi asfalt/kaldırım hasarı
 - moloz_hafriyat: moloz, inşaat atığı veya hafriyat yığını
-- grafiti: duvar/yüzeyde net grafiti veya izinsiz büyük karalama
-- kaldirim_isgali: kaldırımı fiilen kapatan engel veya malzeme yığını
+- grafiti: duvar/yüzeyde net grafiti, spray paint, tag veya izinsiz büyük karalama (birden fazla yönde görünüyorsa mutlaka raporla)
+- kaldirim_isgali: kaldırımı fiilen kapatan engel, sarılmış kablo/hortum, istiflenmiş kutu/ekipman veya malzeme yığını
 - bozuk_tabela: eğik, kırık veya devrilmiş tabela/levha
 - su_birikintisi: yolda/kaldırımda belirgin su birikintisi
 - yabani_ot: kaldırımdan taşan veya bakımsız yabani ot (normal ağaç/bitki DEĞİL)
@@ -56,6 +56,7 @@ YANLIŞ POZİTİF — ASLA SORUN SAYMA:
 GÜVEN SKORU KURALLARI:
 - dolu_cop_kutusu: taşma NET ise confidence 0.82–0.92; şüphede ATLA
 - cop_kirliligi yerde dağılmış atık net ise confidence 0.80–0.90
+- grafiti ve kaldirim_isgali görselde açık ise confidence 0.72–0.88
 - Diğer sorunlar: confidence ≥ 0.70 açık, 0.58–0.69 kısmen gizli
 - yol_hasari ve su_birikintisi için minimum 0.70 gerekir
 - Uydurma YASAK

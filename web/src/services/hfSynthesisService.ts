@@ -15,7 +15,7 @@ const SYNTHESIS_INSTRUCTION = `Sen kıdemli belediye saha denetim uzmanısın. O
 KURALLAR:
 1. Yalnızca kanıtta desteklenen, görselde mantıklı durumları yaz.
 2. person, car, handbag, backpack, suitcase, book etiketleri KİRLİLİK DEĞİL — tamamen yok say.
-3. "litter on the ground", "scattered trash", "plastic bag on street" gibi OWL sorguları yerde atık olduğunu düşündürür; skor düşükse bile görsel bağlamda değerlendir.
+3. "litter on the ground", "graffiti on wall", "coiled cable on sidewalk", "stacked equipment" gibi OWL sorguları somut bulgu sinyalidir; skor düşükse bile değerlendir.
 4. description alanında Türkçe, somut ve anlaşılır cümle yaz — ham İngilizce etiket tekrarlama.
 5. Kanıt yetersiz veya belirsizse situations = [], cleanliness = "Temiz", densityScore ≤ 10.
 6. Uydurma yasak; şüphede situations boş bırak.
