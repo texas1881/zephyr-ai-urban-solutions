@@ -14,6 +14,10 @@ import {
   isGroundingDinoEnabled,
 } from "@/services/groundingDinoService";
 import { fetchWithRetry } from "@/lib/fetchWithRetry";
+import {
+  isHfCreditsError,
+  isHfModelUnsupported,
+} from "@/services/aiPipelineErrors";
 
 const BIN_QUERY_LABELS = URBAN_DETECTION_QUERIES.filter(
   (q) => q.situationHint === "dolu_cop_kutusu",
@@ -95,7 +99,14 @@ async function postInference(model: string, body: unknown): Promise<unknown> {
   });
 
   if (!res.ok) {
-    throw new Error(`HF inference failed (${res.status}): ${await res.text()}`);
+    const detail = await res.text();
+    if (isHfCreditsError(res.status, detail)) {
+      throw new Error(`HF_CREDITS_EXHAUSTED: ${detail.slice(0, 200)}`);
+    }
+    if (isHfModelUnsupported(res.status, detail)) {
+      throw new Error(`HF_MODEL_UNSUPPORTED: ${detail.slice(0, 200)}`);
+    }
+    throw new Error(`HF inference failed (${res.status}): ${detail.slice(0, 240)}`);
   }
   return res.json();
 }

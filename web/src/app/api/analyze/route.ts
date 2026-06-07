@@ -23,6 +23,7 @@ import {
   summarizeDetections,
 } from "@/services/huggingFaceService";
 import { runDetectionCascade } from "@/services/detectionCascade";
+import { AiPipelineUnavailableError } from "@/services/aiPipelineErrors";
 import { buildDetectionOverlays } from "@/services/detectionOverlays";
 import type { DirectionImageInput } from "@/services/huggingFaceService";
 import type { SituationAnalysis } from "@/services/situationAnalysis";
@@ -244,14 +245,27 @@ export async function GET(req: NextRequest) {
     >["directions"] = [];
 
     try {
-      const { analysis, model, directions } = await runDetectionCascade(
-        finalAddress,
-        input,
-      );
-      cascadeDirections = directions;
-      const overlays = buildDetectionOverlays(directions);
-      result = buildFromSituations(analysis, model, overlays);
+      const cascade = await runDetectionCascade(finalAddress, input);
+      cascadeDirections = cascade.directions;
+      const overlays = buildDetectionOverlays(cascade.directions);
+      result = buildFromSituations(cascade.analysis, cascade.model, overlays, {
+        analysisDegraded: cascade.degraded,
+        warnings: [
+          ...(warnings.length > 0 ? warnings : []),
+          ...(cascade.pipelineWarnings ?? []),
+        ],
+      });
     } catch (cascadeErr) {
+      if (cascadeErr instanceof AiPipelineUnavailableError) {
+        const error: ApiResponse<never> = {
+          success: false,
+          message: cascadeErr.message,
+        };
+        return NextResponse.json(error, {
+          status: 503,
+          headers: NO_CACHE_HEADERS,
+        });
+      }
       console.error("[analyze] cascade failed, falling back to DETR:", cascadeErr);
       const perDirection = await Promise.all(
         fetched.map((d) => detectObjects(d.bytes)),

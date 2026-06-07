@@ -6,31 +6,39 @@ import { motion } from "framer-motion";
 export function ScanPulse({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" className={className} aria-hidden>
-      <motion.circle
-        cx="16"
-        cy="16"
-        r="6"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        animate={{ r: [6, 13], opacity: [0.85, 0] }}
+      <motion.g
+        style={{ transformOrigin: "16px 16px" }}
+        animate={{ scale: [1, 2.15], opacity: [0.85, 0] }}
         transition={{ duration: 1.35, repeat: Infinity, ease: [0.16, 1, 0.3, 1] }}
-      />
-      <motion.circle
-        cx="16"
-        cy="16"
-        r="6"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        animate={{ r: [6, 13], opacity: [0.85, 0] }}
+      >
+        <circle
+          cx="16"
+          cy="16"
+          r="6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+      </motion.g>
+      <motion.g
+        style={{ transformOrigin: "16px 16px" }}
+        animate={{ scale: [1, 2.15], opacity: [0.85, 0] }}
         transition={{
           duration: 1.35,
           repeat: Infinity,
           ease: [0.16, 1, 0.3, 1],
           delay: 0.45,
         }}
-      />
+      >
+        <circle
+          cx="16"
+          cy="16"
+          r="6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+      </motion.g>
       <motion.path
         d="M11 16h10M16 11v10"
         stroke="currentColor"

@@ -3,11 +3,15 @@
 import { collectDirectionDetections } from "@/services/hfDetectionPipeline";
 import { analyzeSituationsWithHFVision } from "@/services/hfVisionService";
 import { recallMissedUrbanIssues } from "@/services/hfVisionFallback";
+import {
+  analyzeWithGeminiVision,
+  isGeminiVisionEnabled,
+} from "@/services/geminiVisionService";
+import { AiPipelineUnavailableError } from "@/services/aiPipelineErrors";
 import { reviewWithThinkingAgent } from "@/services/hfThinkingReviewer";
 import { arbitrateAnalysis } from "@/services/hfArbiterService";
 import { synthesizeSituationsWithLLM } from "@/services/hfSynthesisService";
 import {
-  cleanSituationAnalysis,
   hasSignificantDetections,
   filterSignificantDetections,
   synthesizeFromDetectionsRuleBased,
@@ -26,6 +30,8 @@ type CascadeResult = {
   model: AnalysisResult["analysisModel"];
   /** Kanıt katmanı — UI bounding box overlay için */
   directions: DirectionDetections[];
+  degraded?: boolean;
+  pipelineWarnings?: string[];
 };
 
 const CONSENSUS_OPTS = {
@@ -109,6 +115,31 @@ export async function runDetectionCascade(
 
   const directions =
     directionsResult.status === "fulfilled" ? directionsResult.value : [];
+  const pipelineWarnings: string[] = [];
+
+  if (directionsResult.status === "rejected") {
+    const msg = directionsResult.reason instanceof Error
+      ? directionsResult.reason.message
+      : "OWL/DETR taraması başarısız";
+    if (/HF_CREDITS_EXHAUSTED/i.test(msg)) {
+      pipelineWarnings.push(
+        "Hugging Face kredisi tükendi — görsel kanıt katmanı devre dışı.",
+      );
+    } else if (/HF_MODEL_UNSUPPORTED/i.test(msg)) {
+      pipelineWarnings.push(
+        "OWL modelleri HF router üzerinde desteklenmiyor — yalnızca VLM kullanılıyor.",
+      );
+    }
+  }
+
+  if (vlmResult.status === "rejected") {
+    const msg = vlmResult.reason instanceof Error
+      ? vlmResult.reason.message
+      : "VLM başarısız";
+    if (/HF_CREDITS_EXHAUSTED/i.test(msg)) {
+      pipelineWarnings.push("Hugging Face VLM kredisi tükendi.");
+    }
+  }
 
   if (vlmResult.status === "fulfilled") {
     const vlmDraft = vlmResult.value;
@@ -120,13 +151,23 @@ export async function runDetectionCascade(
     );
 
     if (hasFindings(consensus)) {
-      return { analysis: consensus, model: "hf-multi-agent", directions };
+      return {
+        analysis: consensus,
+        model: "hf-multi-agent",
+        directions,
+        pipelineWarnings: pipelineWarnings.length ? pipelineWarnings : undefined,
+      };
     }
 
     if (hasFindings(vlmDraft)) {
       const recalled = validateSituationAnalysis(vlmDraft, RECALL_OPTS);
       if (hasFindings(recalled)) {
-        return { analysis: recalled, model: "hf-multi-agent", directions };
+        return {
+          analysis: recalled,
+          model: "hf-multi-agent",
+          directions,
+          pipelineWarnings: pipelineWarnings.length ? pipelineWarnings : undefined,
+        };
       }
     }
   }
@@ -134,7 +175,12 @@ export async function runDetectionCascade(
   if (directions.length > 0) {
     const ruleBased = synthesizeFromDetectionsRuleBased(address, directions);
     if (hasFindings(ruleBased)) {
-      return { analysis: ruleBased, model: "hf-detection-llm", directions };
+      return {
+        analysis: ruleBased,
+        model: "hf-detection-llm",
+        directions,
+        pipelineWarnings: pipelineWarnings.length ? pipelineWarnings : undefined,
+      };
     }
 
     const filtered = filterSignificantDetections(directions);
@@ -148,11 +194,21 @@ export async function runDetectionCascade(
           directions,
         );
         if (hasFindings(reviewed)) {
-          return { analysis: reviewed, model: "hf-detection-llm", directions };
+          return {
+            analysis: reviewed,
+            model: "hf-detection-llm",
+            directions,
+            pipelineWarnings: pipelineWarnings.length ? pipelineWarnings : undefined,
+          };
         }
         const direct = validateSituationAnalysis(synth, DETECTION_LLM_OPTS);
         if (hasFindings(direct)) {
-          return { analysis: direct, model: "hf-detection-llm", directions };
+          return {
+            analysis: direct,
+            model: "hf-detection-llm",
+            directions,
+            pipelineWarnings: pipelineWarnings.length ? pipelineWarnings : undefined,
+          };
         }
       } catch {
         /* kanıt yolu başarısız */
@@ -160,27 +216,53 @@ export async function runDetectionCascade(
     }
   }
 
-  try {
-    const recall = await recallMissedUrbanIssues(address, input);
-    const recalled = validateSituationAnalysis(recall, RECALL_OPTS);
-    if (hasFindings(recalled)) {
-      return { analysis: recalled, model: "hf-multi-agent", directions };
-    }
-  } catch {
-    /* son temiz */
-  }
-
   if (vlmResult.status === "fulfilled") {
-    return {
-      analysis: validateSituationAnalysis(vlmResult.value, CONSENSUS_OPTS),
-      model: "hf-multi-agent",
-      directions,
-    };
+    try {
+      const recall = await recallMissedUrbanIssues(address, input);
+      const recalled = validateSituationAnalysis(recall, RECALL_OPTS);
+      if (hasFindings(recalled)) {
+        return {
+          analysis: recalled,
+          model: "hf-multi-agent",
+          directions,
+          pipelineWarnings: pipelineWarnings.length ? pipelineWarnings : undefined,
+        };
+      }
+    } catch {
+      /* HF recall başarısız */
+    }
   }
 
-  return {
-    analysis: cleanSituationAnalysis(address),
-    model: "hf-multi-agent",
-    directions,
-  };
+  if (isGeminiVisionEnabled()) {
+    try {
+      const hints =
+        directions.length > 0 ? formatDetectionHints(directions) : undefined;
+      const gemini = await analyzeWithGeminiVision(address, input, hints);
+      const validated = validateSituationAnalysis(gemini, RECALL_OPTS);
+      pipelineWarnings.push(
+        "Hugging Face kullanılamadı — Gemini Vision yedek motoru devrede.",
+      );
+      return {
+        analysis: validated,
+        model: "gemini-vision",
+        directions,
+        degraded: true,
+        pipelineWarnings,
+      };
+    } catch (geminiErr) {
+      const msg =
+        geminiErr instanceof Error ? geminiErr.message : "Gemini başarısız";
+      pipelineWarnings.push(`Gemini yedek analizi başarısız: ${msg.slice(0, 120)}`);
+    }
+  }
+
+  const hfDown = pipelineWarnings.some((w) =>
+    /kredisi tükendi|desteklenmiyor/i.test(w),
+  );
+
+  throw new AiPipelineUnavailableError(
+    hfDown
+      ? "Yapay zekâ servisi şu an kullanılamıyor: Hugging Face kredisi tükendi veya OWL modelleri devre dışı. Vercel'de GEMINI_API_KEY tanımlı olmalı — aksi halde sahte 'Temiz' sonuç üretilmez."
+      : "Çoklu ajan analizi tamamlanamadı. Lütfen birkaç dakika sonra tekrar deneyin.",
+  );
 }

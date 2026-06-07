@@ -71,6 +71,8 @@ export function AnalysisResultView({
   const modelLabel =
     result.analysisModel === "hf-multi-agent"
       ? "Çoklu ajan konsensüs (Vision + Thinking + Arbiter)"
+      : result.analysisModel === "gemini-vision"
+        ? "Gemini Vision (HF yedek motor)"
       : result.analysisModel === "hf-detection-llm"
         ? "Kanıta dayalı yapay zekâ (Qwen2.5)"
         : result.analysisModel === "hf-vision"

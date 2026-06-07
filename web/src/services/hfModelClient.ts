@@ -37,7 +37,11 @@ export async function hfChatCompletion(opts: ChatOptions): Promise<string> {
       signal: ctrl.signal,
     });
     if (!res.ok) {
-      throw new Error(`HF chat ${res.status}: ${await res.text()}`);
+      const detail = await res.text();
+      if (res.status === 402 || /depleted your monthly included credits/i.test(detail)) {
+        throw new Error(`HF_CREDITS_EXHAUSTED: ${detail.slice(0, 200)}`);
+      }
+      throw new Error(`HF chat ${res.status}: ${detail.slice(0, 240)}`);
     }
     const body = await res.json();
     const text: string | undefined = body?.choices?.[0]?.message?.content;
