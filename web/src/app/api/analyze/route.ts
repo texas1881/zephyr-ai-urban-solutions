@@ -39,6 +39,15 @@ import { buildPipelineMeta } from "@/services/pipelineMeta";
 // enough headroom on Vercel to finish image fetch + inference + report.
 export const runtime = "nodejs";
 export const maxDuration = 120;
+/** GET olsa da her istek taze analiz — adres bazlı cache yanlış "Temiz" üretiyordu. */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const NO_CACHE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+  "CDN-Cache-Control": "no-store",
+  "Vercel-CDN-Cache-Control": "no-store",
+};
 
 type FetchedDirection = {
   label: string;
@@ -322,7 +331,7 @@ export async function GET(req: NextRequest) {
     );
 
     const body: ApiResponse<AnalysisResult> = { success: true, data: result };
-    return NextResponse.json(body);
+    return NextResponse.json(body, { headers: NO_CACHE_HEADERS });
   } catch (err) {
     const error: ApiResponse<never> = {
       success: false,

@@ -2,6 +2,7 @@
 
 import { collectDirectionDetections } from "@/services/hfDetectionPipeline";
 import { analyzeSituationsWithHFVision } from "@/services/hfVisionService";
+import { recallMissedUrbanIssues } from "@/services/hfVisionFallback";
 import { reviewWithThinkingAgent } from "@/services/hfThinkingReviewer";
 import { arbitrateAnalysis } from "@/services/hfArbiterService";
 import { synthesizeSituationsWithLLM } from "@/services/hfSynthesisService";
@@ -157,6 +158,16 @@ export async function runDetectionCascade(
         /* kanıt yolu başarısız */
       }
     }
+  }
+
+  try {
+    const recall = await recallMissedUrbanIssues(address, input);
+    const recalled = validateSituationAnalysis(recall, RECALL_OPTS);
+    if (hasFindings(recalled)) {
+      return { analysis: recalled, model: "hf-multi-agent", directions };
+    }
+  } catch {
+    /* son temiz */
   }
 
   if (vlmResult.status === "fulfilled") {

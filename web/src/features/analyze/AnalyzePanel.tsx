@@ -74,6 +74,7 @@ export function AnalyzePanel({
 
     setLoading(true);
     setError(null);
+    setResult(null);
     setDispatchedTeam("");
     setSavedId(null);
     setSuccessFlash(false);
@@ -81,7 +82,8 @@ export function AnalyzePanel({
     onUiState?.("loading");
     try {
       const res = await fetch(
-        `/api/analyze?address=${encodeURIComponent(value)}`,
+        `/api/analyze?address=${encodeURIComponent(value)}&_ts=${Date.now()}`,
+        { cache: "no-store" },
       );
       const raw = await res.text();
       let body: ApiResponse<AnalysisResult>;
@@ -208,7 +210,7 @@ export function AnalyzePanel({
           </motion.div>
         )}
 
-        {loading && !result && (
+        {loading && (
           <motion.div
             key="loading"
             initial={{ opacity: 0, y: 10 }}
@@ -220,7 +222,7 @@ export function AnalyzePanel({
           </motion.div>
         )}
 
-        {result && (
+        {result && !loading && (
           <motion.div
             key="result"
             ref={resultRef}

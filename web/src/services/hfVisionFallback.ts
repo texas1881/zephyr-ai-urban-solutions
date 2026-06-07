@@ -107,3 +107,47 @@ export async function analyzeWithVlmFallback(
     `Tüm VLM modelleri başarısız: ${attempts.map((a) => a.model).join(" → ")}`,
   );
 }
+
+const RECALL_PROMPT = `Sen belediye saha denetim uzmanısın — İKİNCİ TUR (kaçan bulgular).
+İlk tarama "temiz" döndü; dört ana yön görselini TEKRAR incele. Özellikle şunları ara:
+- Duvarlarda grafiti, spray paint, tag, karalama
+- Kaldırımda sarılmış kablo/hortum, istiflenmiş kutu, terk edilmiş malzeme
+- Moloz, inşaat artığı, dağınık atık
+
+İnsan/araç/çanta kirlilik DEĞİL. Emin olduğun bulguları raporla; en fazla 4 durum.
+SADECE JSON (markdown yok) — aynı şema: densityScore, cleanliness, safetyRisk, summary, situations[].`;
+
+const MAIN_LABELS = new Set(["ön", "sağ", "arka", "sol"]);
+
+/** İlk tur boş döndüğünde — grafiti/işgal odaklı ikinci VLM turu. */
+export async function recallMissedUrbanIssues(
+  address: string,
+  directions: DirectionImageInput[],
+): Promise<SituationAnalysis> {
+  const mainDirs = directions.filter((d) => MAIN_LABELS.has(d.label));
+  const input = mainDirs.length >= 4 ? mainDirs : directions;
+  const model =
+    process.env.HF_VISION_FALLBACK_MODEL ||
+    process.env.HF_VISION_MODEL ||
+    DEFAULT_FALLBACK_1;
+
+  const content: Parameters<typeof hfChatCompletion>[0]["content"] = [
+    { type: "text", text: `${RECALL_PROMPT}\n\nAdres: ${address}` },
+  ];
+  for (const d of input) {
+    content.push({ type: "text", text: `Yön: ${d.label}` });
+    content.push({
+      type: "image_url",
+      image_url: { url: `data:${d.mimeType};base64,${d.base64}` },
+    });
+  }
+
+  const text = await hfChatCompletion({
+    model,
+    content,
+    temperature: 0.1,
+    maxTokens: 1600,
+    timeoutMs: 22000,
+  });
+  return parseSituationResponse(text);
+}
