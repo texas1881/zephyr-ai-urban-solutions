@@ -54,6 +54,17 @@ export function recommendTeams(
   return { primary, teams: allTeams, display };
 }
 
+/** Ekip yönlendirme için tek ekip adı (birleşik display string'den ayrıştırır). */
+export function resolvePrimaryTeam(
+  recommendedTeam: string,
+  recommendedTeams?: string[],
+): string {
+  if (recommendedTeams?.[0]) return recommendedTeams[0];
+  if (!recommendedTeam || recommendedTeam === "—") return "—";
+  const first = recommendedTeam.split(" + ")[0]?.trim();
+  return first || recommendedTeam;
+}
+
 /** Geriye uyumluluk */
 export function recommendTeam(
   situations: Array<{

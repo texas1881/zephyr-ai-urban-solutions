@@ -63,23 +63,40 @@ export async function apiRequest<T>(
   });
 
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+  }
 
   if (!res.ok) {
     if (res.status === 401 && typeof window !== "undefined") {
       setToken(null);
     }
+    const payload = data as { message?: string; error?: string } | null;
     const message =
-      (data && (data.message || data.error)) || `İstek başarısız (${res.status})`;
+      payload?.message ||
+      payload?.error ||
+      (text ? text.slice(0, 200) : `İstek başarısız (${res.status})`);
     throw new ApiError(res.status, message);
   }
   return data as T;
 }
 
 /** Best-effort fire-and-forget request (used for optional backend sync). */
-export function apiFireAndForget(path: string, options: RequestOptions): void {
+export function apiFireAndForget(
+  path: string,
+  options: RequestOptions,
+  onError?: (err: unknown) => void,
+): void {
   if (!hasBackend()) return;
-  apiRequest(path, options).catch(() => {
-    /* backend optional */
+  apiRequest(path, options).catch((err) => {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[zephyr] backend sync failed:", path, err);
+    }
+    onError?.(err);
   });
 }

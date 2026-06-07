@@ -13,6 +13,7 @@ import type {
 } from "@/types/api";
 import { SuccessFlash } from "@/components/ui/SuccessFlash";
 import type { NavSignal } from "@/features/dashboard/HomeShell";
+import { AnalysisPipelineProgress } from "./AnalysisPipelineProgress";
 import { AnalysisResultView } from "./AnalysisResultView";
 
 export type AnalysisUiState = "live" | "loading" | "success";
@@ -79,9 +80,25 @@ export function AnalyzePanel({
     onNavSignal?.("loading");
     onUiState?.("loading");
     try {
-      const res = await fetch(`/api/analyze?address=${encodeURIComponent(value)}`);
-      const body: ApiResponse<AnalysisResult> = await res.json();
-      if (!body.success) throw new Error(body.message);
+      const res = await fetch(
+        `/api/analyze?address=${encodeURIComponent(value)}`,
+      );
+      const raw = await res.text();
+      let body: ApiResponse<AnalysisResult>;
+      try {
+        body = JSON.parse(raw) as ApiResponse<AnalysisResult>;
+      } catch {
+        throw new Error(
+          res.ok
+            ? "Sunucu yanıtı okunamadı"
+            : `Analiz hatası (${res.status})`,
+        );
+      }
+      if (!res.ok || !body.success) {
+        throw new Error(
+          !body.success ? body.message : `Analiz hatası (${res.status})`,
+        );
+      }
       setResult(body.data);
       const saved = onAnalyzed?.(body.data);
       if (saved) setSavedId(saved.id);
@@ -198,16 +215,8 @@ export function AnalyzePanel({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={SPRING_SMOOTH}
-            className="glass flex items-center gap-3.5 rounded-2xl p-6 text-sm text-muted"
           >
-            <ScanPulse className="h-6 w-6 shrink-0 text-foreground" />
-            <div>
-              <p className="font-medium text-foreground/90">Analiz sürüyor</p>
-              <p className="mt-0.5 text-xs">
-                Sokağın dört yönü alınıyor ve çoklu ajan yapay zekâ ile
-                taranıyor…
-              </p>
-            </div>
+            <AnalysisPipelineProgress active />
           </motion.div>
         )}
 

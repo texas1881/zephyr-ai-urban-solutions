@@ -1,13 +1,13 @@
 import { passesDisplayGate } from "@/features/detections/detectionOverlayUtils";
 import type { DirectionDetectionOverlay } from "@/features/detections/detectionOverlayUtils";
 import type { DirectionDetections } from "@/services/huggingFaceService";
-
-const IMAGE_DIM = 640;
+import { getStreetViewImageDim } from "@/services/streetViewService";
 
 /** OWL/DETR kutularını UI overlay formatına çevirir. */
 export function buildDetectionOverlays(
   directions: DirectionDetections[],
 ): DirectionDetectionOverlay[] {
+  const dim = getStreetViewImageDim();
   return directions.map((d) => ({
     direction: d.label,
     heading: d.heading,
@@ -17,10 +17,10 @@ export function buildDetectionOverlays(
       .map((det) => ({
         label: det.label,
         score: det.score,
-        x: det.box.xmin / IMAGE_DIM,
-        y: det.box.ymin / IMAGE_DIM,
-        w: (det.box.xmax - det.box.xmin) / IMAGE_DIM,
-        h: (det.box.ymax - det.box.ymin) / IMAGE_DIM,
+        x: det.box.xmin / dim,
+        y: det.box.ymin / dim,
+        w: (det.box.xmax - det.box.xmin) / dim,
+        h: (det.box.ymax - det.box.ymin) / dim,
       })),
   }));
 }

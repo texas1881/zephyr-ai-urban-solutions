@@ -28,6 +28,7 @@ import {
 } from "./situations";
 import { StreetViewExplorer } from "@/features/streetview/StreetViewExplorer";
 import { SPRING_BOUNCE, SPRING_SMOOTH } from "@/components/motion/springs";
+import { AnalysisCredibilityPanel } from "./AnalysisCredibilityPanel";
 import { DensityGauge } from "./DensityGauge";
 
 const RISK_LABEL: Record<SafetyRisk, string> = {
@@ -97,6 +98,13 @@ export function AnalysisResultView({
 
       <div className="border-t border-line">
         <div className="flex flex-col gap-6 p-6">
+          {result.pipelineMeta && (
+            <AnalysisCredibilityPanel
+              meta={result.pipelineMeta}
+              degraded={result.analysisDegraded}
+            />
+          )}
+
           <div>
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] uppercase tracking-[0.18em] text-muted">
@@ -118,6 +126,18 @@ export function AnalysisResultView({
                 ? ` · ${result.panoramaFrames} kare 360° AI taraması`
                 : ""}
             </p>
+            {result.analysisDegraded && (
+              <p className="mt-2 rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs text-amber-200/90">
+                Analiz kalitesi düşürüldü — çoklu ajan yerine basit tespit kullanıldı.
+              </p>
+            )}
+            {result.warnings && result.warnings.length > 0 && (
+              <ul className="mt-2 space-y-1 text-xs text-muted">
+                {result.warnings.map((w) => (
+                  <li key={w}>· {w}</li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-6">
@@ -145,6 +165,24 @@ export function AnalysisResultView({
               </p>
             </div>
           </div>
+
+          {result.situations.length === 0 && result.cleanliness === "Temiz" && (
+            <div className="glass flex items-start gap-4 rounded-2xl border border-white/12 p-5">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06]">
+                <ShieldCheck size={24} className="text-foreground" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Doğrulanmış temiz bölge
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  360° panorama ve çoklu ajan konsensüsü sonrası müdahale
+                  gerektiren çevresel bulgu raporlanmadı. Görsel kanıt
+                  kutularını sokak görüntüsünde inceleyebilirsiniz.
+                </p>
+              </div>
+            </div>
+          )}
 
           {result.situations.length > 0 && (
             <div className="space-y-2">

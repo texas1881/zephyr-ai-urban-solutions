@@ -59,8 +59,15 @@ export function DashboardShell({
     setToast(null);
   }, []);
 
-  const { records, addRecord, removeRecord, assignTeam, setStatus, clear } =
-    recordsStore;
+  const {
+    records,
+    syncError,
+    addRecord,
+    removeRecord,
+    assignTeam,
+    setStatus,
+    clear,
+  } = recordsStore;
   const { user, loading, backendEnabled, logout } = useAuth();
 
   // Priority board is driven by the REAL accumulated analysis records
@@ -116,7 +123,7 @@ export function DashboardShell({
           {view === "analiz" && (
             <ModuleCard
               title="Çevre Analizi"
-              subtitle="Adres gir → Street View → yapay zekâ ile çöp/kirlilik tespiti"
+              subtitle="360° panorama · çoklu ajan AI · görsel kanıt kutuları · saha mühendisliği raporu"
               badgeState={analyzeBadge}
             >
               <AnalyzePanel
@@ -136,6 +143,7 @@ export function DashboardShell({
             >
               <RecordsView
                 records={records}
+                syncError={syncError}
                 onClear={clear}
                 onRemove={removeRecord}
                 onAssign={assignTeam}

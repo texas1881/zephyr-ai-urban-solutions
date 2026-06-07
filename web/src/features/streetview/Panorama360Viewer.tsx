@@ -74,7 +74,7 @@ export function Panorama360Viewer({
 
   useEffect(() => {
     if (scanTimer.current) clearTimeout(scanTimer.current);
-    scanTimer.current = setTimeout(() => runScan(heading), 380);
+    scanTimer.current = setTimeout(() => runScan(heading), 900);
     return () => {
       if (scanTimer.current) clearTimeout(scanTimer.current);
     };

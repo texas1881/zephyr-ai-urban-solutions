@@ -30,8 +30,8 @@ type CascadeResult = {
 };
 
 const CONSENSUS_OPTS = {
-  minConfidence: 0.52,
-  minLowSeverity: 0.6,
+  minConfidence: 0.55,
+  minLowSeverity: 0.62,
   maxSituations: 4,
 };
 

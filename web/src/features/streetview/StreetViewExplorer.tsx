@@ -44,6 +44,11 @@ export function StreetViewExplorer({ result }: Props) {
                 · {result.panoramaFrames} kare 360° AI
               </span>
             ) : null}
+            {result.detectionOverlays?.some((o) => o.boxes.length > 0) ? (
+              <span className="ml-2 text-foreground/60">
+                · görsel kanıt aktif
+              </span>
+            ) : null}
           </span>
           <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-black/40 p-0.5">
             <SpringPress

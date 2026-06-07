@@ -30,6 +30,7 @@ export type DetectionPoint = {
 
 import type { Severity, SituationType } from "@/features/analyze/situations";
 import type { DirectionDetectionOverlay } from "@/features/detections/detectionOverlayUtils";
+import type { PipelineMeta } from "@/services/pipelineMeta";
 
 export type DetectedObject = {
   label: string;
@@ -137,6 +138,12 @@ export type AnalysisResult = {
   imageSize?: string;
   /** Yön bazlı OWL/DETR bounding box overlay'leri (UI çerçevesi). */
   detectionOverlays?: DirectionDetectionOverlay[];
+  /** Çoklu ajan başarısız oldu, basit DETR yedeğine düşüldü */
+  analysisDegraded?: boolean;
+  /** Kullanıcıya gösterilecek uyarılar (eksik panorama vb.) */
+  warnings?: string[];
+  /** Jüri/demo için güven metrikleri ve saha kararı */
+  pipelineMeta?: PipelineMeta;
   /** Dispatch status. */
   status: DispatchStatus;
   /** Team the record has been dispatched to (when assigned). */

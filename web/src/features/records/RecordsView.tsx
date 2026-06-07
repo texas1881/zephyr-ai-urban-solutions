@@ -5,10 +5,12 @@ import { motion } from "framer-motion";
 import { Check, Send, Trash2 } from "lucide-react";
 import type { AnalysisRecord, DispatchStatus } from "@/types/api";
 import { priorityColor, priorityLabel } from "@/features/detections/priority";
+import { resolvePrimaryTeam } from "@/features/analyze/teamRouting";
 import { computeRecordsStats } from "./recordsStats";
 
 type Props = {
   records: AnalysisRecord[];
+  syncError?: string | null;
   onClear: () => void;
   onRemove: (id: string) => void;
   onAssign?: (id: string, team: string) => void;
@@ -40,6 +42,7 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 
 export function RecordsView({
   records,
+  syncError,
   onClear,
   onRemove,
   onAssign,
@@ -63,6 +66,11 @@ export function RecordsView({
 
   return (
     <div className="flex flex-col gap-5">
+      {syncError && (
+        <p className="rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs text-amber-200/90">
+          {syncError}
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Toplam analiz" value={stats.total} />
         <Stat label="Ort. yoğunluk" value={stats.avgDensity} />
@@ -151,7 +159,15 @@ export function RecordsView({
                 <div className="ml-auto flex items-center gap-2">
                   {canAssign && (
                     <button
-                      onClick={() => onAssign?.(r.id, r.recommendedTeam)}
+                      onClick={() =>
+                        onAssign?.(
+                          r.id,
+                          resolvePrimaryTeam(
+                            r.recommendedTeam,
+                            r.recommendedTeams,
+                          ),
+                        )
+                      }
                       className="btn-primary flex items-center gap-1.5 rounded-md px-3 py-1 text-xs"
                     >
                       <Send size={12} />

@@ -23,6 +23,13 @@ export function getStreetViewSize(): string {
   return clampSize(process.env.STREET_VIEW_IMAGE_SIZE?.trim() || "640x640");
 }
 
+/** Overlay normalizasyonu için piksel boyutu */
+export function getStreetViewImageDim(): number {
+  const m = getStreetViewSize().match(/^(\d+)x(\d+)$/);
+  if (!m) return STREET_VIEW_MAX_DIM;
+  return Math.min(Number(m[1]) || STREET_VIEW_MAX_DIM, STREET_VIEW_MAX_DIM);
+}
+
 /**
  * Tespit için optimize edilmiş kamera presetleri.
  * fov=66 → 90'a göre ~%36 daha fazla piksel/nesne (uzaktaki çöp/kutu daha net).

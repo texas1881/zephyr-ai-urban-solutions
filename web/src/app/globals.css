@@ -308,6 +308,39 @@ body {
   mix-blend-mode: normal;
 }
 
+.verdict-card.verdict-uygun {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+}
+
+.verdict-card.verdict-izle {
+  border-color: rgba(255, 200, 100, 0.22);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 180, 80, 0.08) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+}
+
+.verdict-card.verdict-mudahale {
+  border-color: rgba(255, 120, 100, 0.28);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 80, 70, 0.1) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+}
+
+.pipeline-progress {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 16px 48px rgba(0, 0, 0, 0.35);
+}
+
 .sv-explorer {
   contain: layout style;
 }

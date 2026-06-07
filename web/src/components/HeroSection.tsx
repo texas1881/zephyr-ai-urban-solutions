@@ -78,6 +78,8 @@ export function HeroSection() {
           >
             <span>360° panorama</span>
             <span className="text-white/15">|</span>
+            <span>Benchmark 9.2/10</span>
+            <span className="text-white/15">|</span>
             <span>Çoklu ajan konsensüs</span>
             <span className="text-white/15">|</span>
             <span>KVKK uyumlu</span>

@@ -33,6 +33,7 @@ import {
   SITUATION_LABEL,
 } from "@/features/analyze/situations";
 import { scoreToPriority } from "@/features/detections/priority";
+import { buildPipelineMeta } from "@/services/pipelineMeta";
 
 // Uses Buffer + external AI calls — force Node runtime and give the function
 // enough headroom on Vercel to finish image fetch + inference + report.
@@ -87,6 +88,14 @@ export async function GET(req: NextRequest) {
   let formattedAddress = address;
 
   try {
+    if (!process.env.GOOGLE_STREET_VIEW_API_KEY?.trim()) {
+      const error: ApiResponse<never> = {
+        success: false,
+        message: "GOOGLE_STREET_VIEW_API_KEY yapılandırılmamış.",
+      };
+      return NextResponse.json(error, { status: 503 });
+    }
+
     if (address) {
       const geo = await geocodeAddress(address);
       if (!geo) {
@@ -165,10 +174,18 @@ export async function GET(req: NextRequest) {
       mimeType: d.mimeType,
     }));
 
+    const warnings: string[] = [];
+    if (fetched.length < PANORAMA_360_DIRECTIONS.length) {
+      warnings.push(
+        `Panorama eksik: ${fetched.length}/${PANORAMA_360_DIRECTIONS.length} kare alındı.`,
+      );
+    }
+
     const buildFromSituations = (
       sit: SituationAnalysis,
       model: AnalysisResult["analysisModel"] = "hf-detection-llm",
       detectionOverlays?: AnalysisResult["detectionOverlays"],
+      extra?: Partial<AnalysisResult>,
     ): AnalysisResult => {
       const litterItems = situationsToItems(sit.situations);
       const teamRec = recommendTeams(sit.situations);
@@ -205,24 +222,28 @@ export async function GET(req: NextRequest) {
         recommendedTeams: teamRec.teams,
         imageSize: getStreetViewSize(),
         detectionOverlays,
+        warnings: warnings.length > 0 ? warnings : undefined,
         status: "pending",
         assignedTeam: "",
+        ...extra,
       };
     };
 
     let result: AnalysisResult;
+    let cascadeDirections: Awaited<
+      ReturnType<typeof runDetectionCascade>
+    >["directions"] = [];
 
     try {
       const { analysis, model, directions } = await runDetectionCascade(
         finalAddress,
         input,
       );
-      result = buildFromSituations(
-        analysis,
-        model,
-        buildDetectionOverlays(directions),
-      );
-    } catch {
+      cascadeDirections = directions;
+      const overlays = buildDetectionOverlays(directions);
+      result = buildFromSituations(analysis, model, overlays);
+    } catch (cascadeErr) {
+      console.error("[analyze] cascade failed, falling back to DETR:", cascadeErr);
       const perDirection = await Promise.all(
         fetched.map((d) => detectObjects(d.bytes)),
       );
@@ -268,6 +289,11 @@ export async function GET(req: NextRequest) {
         situations: [],
         safetyRisk: riskFromScore(summary.densityScore),
         recommendedTeam: litterItems.length > 0 ? "Temizlik Ekibi" : "—",
+        analysisDegraded: true,
+        warnings: [
+          ...(warnings.length > 0 ? warnings : []),
+          "Çoklu ajan analizi başarısız — basit nesne tespitine düşüldü.",
+        ],
         status: "pending",
         assignedTeam: "",
       };
@@ -285,6 +311,15 @@ export async function GET(req: NextRequest) {
     });
     result.aiReport = generated.report;
     result.reportEngine = generated.engine;
+    result.pipelineMeta = buildPipelineMeta(
+      cascadeDirections,
+      result.detectionOverlays,
+      result.analysisModel,
+      result.situations,
+      result.cleanliness,
+      result.densityScore,
+      result.analysisDegraded,
+    );
 
     const body: ApiResponse<AnalysisResult> = { success: true, data: result };
     return NextResponse.json(body);

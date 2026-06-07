@@ -1,184 +1,205 @@
-# Zephyr — Proje Raporu
+# Zephyr — Kapsamlı Proje Raporu
 
-> **Kentsel Saha Yönetim Sistemi** — yapay zekâ destekli temizlik & altyapı denetimi
-> Cursor Hackathon 2026 · AI-Driven Kentsel Çözümler
+> **Kentsel Saha Yönetim Sistemi** · Cursor Hackathon 2026  
+> Son güncelleme: Haziran 2026
 
 ---
 
 ## 1. Yönetici Özeti
 
-**Zephyr**, belediyelerin saha denetim ve temizlik operasyonlarını veriye dayalı
-hale getiren bir karar destek sistemidir. Kullanıcı bir adres girer; sistem o
-noktanın **dört yönünü** (ön/arka/sağ/sol) Google Street View üzerinden alır,
-**çok-kipli (multimodal) bir yapay zekâ modeli** ile inceler, çevresel sorunları
-**önem ve güven skoruyla** tespit eder, **sorumlu ekibi otomatik önerir** ve
-insan tarafından okunabilir **kapsamlı bir saha raporu** üretir.
+**Zephyr**, belediye saha denetimini veriye dayalı hale getiren bir karar destek sistemidir. Kullanıcı adres girer; sistem **360° Street View** (8×45° panorama), **çoklu ajan yapay zekâ** (Vision → Thinking → Arbiter), **OWL/DETR kanıt katmanı** ve **bounding box overlay** ile çevresel sorunları tespit eder, ekip önerir ve Türkçe saha raporu üretir.
 
-Sistem ayrıca interaktif **360° Street View**, **JWT tabanlı güvenli oturum** ve
-**KVKK uyumlu**, gizlilik-öncelikli bir tasarım içerir.
-
----
-
-## 2. Problem ve Çözüm
-
-**Problem.** Belediye temizlik/bakım ekipleri çoğunlukla sabit güzergâhlarda,
-kirliliğin gerçekte nerede biriktiğine dair anlık veri olmadan çalışır. Bu, hem
-zaman hem bütçe kaybına yol açar.
-
-**Çözüm.** Zephyr, kamusal sokak görüntülerini **uygulanabilir,
-önceliklendirilmiş saha aksiyonlarına** dönüştürür: nerede, ne tür bir sorun
-var, ne kadar acil ve hangi ekip gönderilmeli.
+| Metrik | Değer |
+|--------|-------|
+| Benchmark skoru | **9.2/10** (11/12 vaka, yerel) |
+| Production web | https://web-zephyr8.vercel.app |
+| Backend | https://zephyr-backend-2mtm.onrender.com |
+| Analiz süresi | ~30–50 sn/konum |
 
 ---
 
-## 3. Sistem Akışı
+## 2. Sistem Mimarisi (Güncel)
 
 ```
-Adres → Geocoding → Street View (4 yön) → AI Görsel Analiz (durum tespiti)
-      → Ekip Önerisi → Kapsamlı AI Raporu → Kayıt / Ekip Yönlendirme
+Adres → Geocoding → Street View (8 kare, fov=66, pitch=-8)
+      → OWL/DETR/Grounding DINO (kanıt)
+      → Vision Agent (Qwen-VL zinciri)
+      → Thinking Reviewer (görsel doğrulama)
+      → Arbiter (tutarlılık)
+      → Doğrulama + zenginleştirme
+      → Rapor (HF metin → yerel)
+      → UI (overlay + kayıt)
 ```
 
-1. **Geocoding** — Adres, Google Geocoding ile koordinata çevrilir.
-2. **Görüntü toplama** — Dört yönün Street View görselleri paralel alınır.
-3. **Tespit** — Dört görsel tek istekte çok-kipli modele gönderilir;
-   yapılandırılmış JSON (durumlar + önem + güven + yoğunluk skoru) döner.
-4. **Ekip önerisi** — En yüksek önem dereceli soruna göre uygun ekip önerilir.
-5. **Kapsamlı rapor** — Yorum motoru profesyonel bir Türkçe saha raporu yazar.
-6. **Sunum & kayıt** — Sonuç panelde gösterilir, kaydedilir, ekip yönlendirilir.
-
----
-
-## 4. Teknoloji Yığını
+### Teknoloji yığını
 
 | Katman | Teknoloji |
 |--------|-----------|
-| Web | Next.js 16 + TypeScript (App Router) |
-| Backend | Go — **masterfabric-go** katmanlı mimarisi |
-| Kimlik | masterfabric-go IAM — JWT + RBAC + Postgres |
-| AI — Tespit | **Hugging Face** çok-kipli model: `Qwen/Qwen3-VL-8B-Instruct` |
-| AI — Yorum | **Gemini** → HF metin modeli → yerel özet (kademeli fallback) |
-| Yedek CV | Google Cloud Vision → `facebook/detr-resnet-50` |
-| Veri kaynağı | Google Street View Static + Geocoding + Maps Embed (360°) |
-| Hosting | Vercel (web), Render.com (backend + Postgres) |
-| Geliştirme | Cursor IDE + agentic ruleset (`.cursor/rules/`) |
-
-> **Model eğitilmedi.** Hazır, barındırılan modeller API ile çağrıldı.
-
-Ayrıntılı klasör/mimari açıklaması: [`MIMARI.md`](MIMARI.md).
+| Web | Next.js 16, TypeScript, Framer Motion |
+| AI tespit | HF OWLv2 + DETR-101 + Grounding DINO (opsiyonel) |
+| AI VLM | Qwen3-VL 30B → 8B → Qwen2.5-VL (fallback) |
+| AI Thinking | Qwen3-VL-Thinking |
+| AI Arbiter | Qwen2.5-7B |
+| Görüntü | Google Street View Static (max 640×640) |
+| Backend | Go — masterfabric-go, JWT IAM, Postgres |
+| Kayıt | localStorage + backend fire-and-forget sync |
+| Hosting | Vercel (web), Render (backend) |
 
 ---
 
-## 5. Yapay Zekâ Kullanımı
+## 3. Kod Denetimi — Bulgular
 
-### 5.1 Görsel durum tespiti — Hugging Face (birincil)
-- Model: `Qwen/Qwen3-VL-8B-Instruct` (vision-language), HF router üzerinden.
-- Dört yön görseli **tek istekte** değerlendirilir.
-- Çıktı sıkı bir JSON şemasına ayrıştırılır: `densityScore`, `cleanliness` ve
-  her biri `type / severity / confidence / direction / description` içeren
-  `situations` dizisi.
-- Prompt, **insan/araç/yangın musluğu gibi normal kent ögelerini sorun saymayı
-  yasaklar** — yanlış pozitifleri (kalabalık ≠ kirli) azaltır.
+### Kritik / Yüksek
 
-### 5.2 Kapsamlı yorum/rapor — Gemini (yorum amaçlı)
-- Tespitten **ayrılmış** bağımsız bir adımdır.
-- Kademeli dayanıklılık: **Gemini → HF metin → yerel özet**. Bir sağlayıcı
-  kotası dolsa bile rapor her zaman üretilir (asla hata fırlatmaz).
+| # | Sorun | Durum |
+|---|-------|-------|
+| 1 | `/api/analyze` kimlik doğrulamasız — maliyet kötüye kullanımı riski | **Açık** — rate limit / API key önerilir |
+| 2 | Backend kayıtları in-memory — Render redeploy'da silinir | **Açık** — Postgres persistence gerekli |
+| 3 | Benchmark API auth yok | **Açık** |
+| 4 | Kayıtlar yalnızca localStorage'dan yükleniyordu | **Düzeltildi** — backend GET merge |
+| 5 | Çöp kutusu yanlış pozitif (agresif bin tespiti) | **Düzeltildi** — eşik + kanıt kapısı |
+| 6 | Ekip yönlendirme composite string gönderiyordu | **Düzeltildi** — `resolvePrimaryTeam` |
 
-### 5.3 Prompt teknikleri
-- **Yapılandırılmış çıktı** (katı JSON şeması).
-- **Negatif kısıtlar** (normal kent ögelerini hariç tutan guardrail).
-- **Taksonomi sabitleme** (önceden tanımlı enum'lar).
-- **Düşük sıcaklık (0.2)** ile kararlı sonuç.
-- **Görev ayrımı** (tespit ve rapor bağımsız çağrılar).
+### Orta
 
----
+| # | Sorun | Durum |
+|---|-------|-------|
+| 7 | `apiRequest` JSON parse crash | **Düzeltildi** |
+| 8 | AnalyzePanel `res.ok` kontrolü yok | **Düzeltildi** |
+| 9 | Cascade hata sessiz DETR'e düşüyor | **Düzeltildi** — `analysisDegraded` + log |
+| 10 | Backend sync hataları sessiz | **Düzeltildi** — `syncError` UI |
+| 11 | Eksik panorama uyarısı yok | **Düzeltildi** — `warnings[]` |
+| 12 | `.env.example` 1280px (yanlış) | **Düzeltildi** — 640×640 |
+| 13 | 360° scan-frame aşırı istek | **Düzeltildi** — debounce 900ms |
+| 14 | CORS `*` + credentials backend | **Açık** |
+| 15 | JWT localStorage — XSS riski | **Açık** (hackathon kabulü) |
 
-## 6. Öne Çıkan Özellikler
+### Düşük
 
-- **Hassas durum tespiti**: 6 sorun tipi, önem (düşük→kritik) ve güven skoru.
-- **Otomatik ekip yönlendirme**: durum → sorumlu ekip + tek tıkla atama.
-- **İnteraktif 360° Street View**: sahayı her yönden gezme.
-- **Kapsamlı AI raporu**: profesyonel, akıcı Türkçe değerlendirme.
-- **Kayıt & istatistik**: analiz geçmişi, durum (beklemede/atandı/çözüldü).
-- **Güvenli erişim**: JWT oturum (backend bağlıysa); aksi halde demo modu.
-- **Estetik arayüz**: siyah-beyaz glassmorphism + SVG radar animasyonu.
-
----
-
-## 7. KVKK ve Veri Güvenliği
-
-- **Amaç sınırlaması**: yalnızca kamusal alandaki **cansız** objeler analiz edilir.
-- **Kişisel veri yok**: yüz tanıma, plaka okuma, kişi/araç takibi yapılmaz.
-- **Kaynakta anonimleştirme**: Street View'da yüz ve plakalar Google tarafından
-  otomatik bulanıklaştırılır.
-- **Veri minimizasyonu**: ham görüntüler kalıcı depolanmaz; yalnızca analiz
-  sonuçları (skor, durumlar) saklanır.
-- **Güvenlik**: API anahtarları sunucu tarafında; istemci harita anahtarı
-  yalnızca harita gömme ile sınırlandırılmış; erişim JWT ile korunur.
-- Ayrıntı: uygulama içi `/kvkk` sayfası ve [`KVKK_VERI_IMHA_BELGESI.md`](KVKK_VERI_IMHA_BELGESI.md).
+| # | Sorun | Durum |
+|---|-------|-------|
+| 16 | Ölü export `analyzeWithDetectionPipeline` | Açık |
+| 17 | `NEXT_PUBLIC_MAPS_EMBED_KEY` kullanılmıyor | Açık |
+| 18 | PROJE_RAPORU eski URL/model bilgisi | **Güncellendi** |
 
 ---
 
-## 8. Mimari Notları
+## 4. Bu Oturumda Yapılan Bug Fix'ler
 
-- **Web**: feature-first yapı (`features/analyze`, `records`, `auth`,
-  `dashboard`, `detections`, `navigation`); servisler `services/` altında izole.
-- **API zarfı**: tüm uçlar `{ success, data }` / `{ success, message }` döner.
-- **Backend**: masterfabric-go katmanları (domain → application → infrastructure)
-  + `shared` altyapı; cleanliness alanı kayıt CRUD + istatistik + ekip atama +
-  durum güncelleme.
-- **Dayanıklılık**: tespit ve rapor için bağımsız fallback zincirleri.
-
----
-
-## 9. Geliştirme Süreci (Cursor)
-
-- Tüm geliştirme **Cursor IDE** içinde agentic akışla yapıldı.
-- `.cursor/rules/` kuralları teknoloji yığınını, feature-first mimariyi, REST
-  zarfını, KVKK'yı ve commit disiplinini zorunlu kıldı.
-- gcloud / Render / Vercel CLI'ları Cursor ajanı üzerinden çalıştırılarak API
-  etkinleştirme ve deploy otomasyonu yapıldı.
-- Kod tek seferde değil, **anlamlı commit'lerle aşama aşama** GitHub'a işlendi.
+1. **`apiClient.ts`** — Güvenli JSON parse; sync hata loglama
+2. **`AnalyzePanel.tsx`** — HTTP status + parse hata yönetimi
+3. **`useRecords.ts`** — Backend'den kayıt yükleme + merge; syncError
+4. **`RecordsView.tsx`** — Birincil ekip adı; sync uyarısı
+5. **`teamRouting.ts`** — `resolvePrimaryTeam()` helper
+6. **`analyze/route.ts`** — API key kontrolü; degraded flag; panorama uyarısı; cascade log
+7. **`AnalysisResultView.tsx`** — Degraded/uyarı gösterimi
+8. **`detectionOverlays.ts`** — Dinamik görüntü boyutu
+9. **`detectionCascade.ts`** — Güven eşikleri hizalandı (0.55)
+10. **`Panorama360Viewer.tsx`** — Scan debounce artırıldı
 
 ---
 
-## 10. Dağıtım
+## 5. Benchmark Sonuçları
 
-| Bileşen | Platform | Adres |
-|---------|----------|-------|
-| Web | Vercel | `https://web-six-tau-79.vercel.app` |
-| Backend | Render.com | `https://zephyr-backend-2mtm.onrender.com` |
-| Veritabanı | Render Postgres | (backend'e bağlı) |
+**Set:** 12 İstanbul konumu (`web/benchmark/locations.csv`)
 
-Sağlık kontrolü: `GET /health/live`, `GET /health/ready`.
+| Sonuç | Detay |
+|-------|-------|
+| **11/12 PASS** | Skor **9.2/10** |
+| Tek FAIL | Ataşehir — recall (model temiz döndü) |
+| Ortalama latency | ~33 sn/vaka |
 
----
+Çalıştırma:
+```bash
+cd web
+BENCHMARK_BASE_URL=http://localhost:3001 node scripts/run-benchmark.mjs
+```
 
-## 11. Son Düzenleme ve Temizlik (Yarışma Sonrası)
-
-Kod tabanı, yarışma sonrası bakım kalitesi için sadeleştirildi:
-
-- **Ölü kod kaldırıldı**: kullanılmayan `detectionsService.ts`, mock `/api/detections`
-  route'u ve `mockData.ts` silindi (dashboard zaten gerçek kayıtları kullanıyor).
-- **Dokümanlar düzenlendi**: tüm raporlar, KVKK belgesi ve sunum `docs/` altında
-  toplandı; kök dizin yalnızca `README`, `render.yaml`, `.gitignore` içeriyor.
-- **Mimari belgesi eklendi**: [`MIMARI.md`](MIMARI.md) ile klasör yapısı ve
-  katman kuralları görünür kılındı.
-- **Doğrulama**: temiz build (`next build`) başarılı, lint hatasız.
-
-Güncel route listesi: `/`, `/kvkk`, `/api/analyze`, `/api/streetview`.
+> Production Vercel Deployment Protection benchmark scriptini 401 ile engelleyebilir.
 
 ---
 
-## 12. Sonuç ve Gelecek Çalışmalar
+## 6. Tespit Pipeline Kalite Ayarları
 
-Zephyr, hazır AI modellerini gerçek bir kentsel probleme bağlayan, uçtan uca
-çalışan ve gizlilik-öncelikli bir karar destek sistemidir. Gelecekte:
+| Parametre | Değer | Açıklama |
+|-----------|-------|----------|
+| `STREET_VIEW_IMAGE_SIZE` | 640×640 | Google SV gerçek tavan |
+| `ANALYSIS_VIEW.fov` | 66 | Zoom — nesne başına daha fazla piksel |
+| `ANALYSIS_VIEW.pitch` | -8 | Kaldırım/zemin odaklı |
+| Bin OWL eşiği | 0.42 | FP azaltma |
+| `dolu_cop_kutusu` min güven | 0.72 | Kutu + taşma kanıtı zorunlu |
+| Konsensüs min güven | 0.55 | Validator ile hizalı |
 
-- Toplu/harita üzerinden çoklu nokta taraması ve ısı haritası.
-- Ekip mobil bildirimi (Expo tabanlı saha uygulaması).
-- Zaman serisi: aynı noktanın periyodik taranıp iyileşme/kötüleşme takibi.
-- Model doğruluğu için kurum içi etiketli doğrulama seti (anonimleştirilmiş).
+---
+
+## 7. UI Özellikleri
+
+- Kurumsal siyah-beyaz glass tema
+- Sabit chrome + dikey sekme geçişi (yatay kayma fix)
+- **DetectionImageFrame** — bounding box overlay + toggle
+- 360° panorama gezinme + anlık tarama paneli
+- 18 hızlı-dene lokasyonu
+- Canlı nav pulse / success flash
+
+---
+
+## 8. Geliştirme Önerileri (Öncelik Sırası)
+
+### P0 — Üretim güvenilirliği
+1. **Rate limiting** — `/api/analyze`, `/api/scan-frame` (Vercel middleware veya Upstash)
+2. **Postgres persistence** — cleanliness kayıtları kalıcı depolama
+3. **CORS düzeltmesi** — explicit Vercel origin listesi
+4. **Benchmark auth** — shared secret veya JWT
+
+### P1 — Veri tutarlılığı
+5. Backend DTO genişletme — `aiReport`, `directionImages`, `createdAt`
+6. İki yönlü sync — conflict resolution stratejisi
+7. Analiz progress UI — aşama göstergesi (Street View → Vision → Arbiter)
+
+### P2 — Doğruluk
+8. Kadıköy/Ataşehir recall iyileştirme — daha spesifik geocode koordinatları
+9. Grounding DINO endpoint aktifleştirme
+10. Etiketli doğrulama seti genişletme (20+ konum)
+
+### P3 — Ürün
+11. Harita ısı haritası (çoklu nokta)
+12. Ekip mobil bildirimi
+13. Zaman serisi — periyodik tarama karşılaştırması
+
+---
+
+## 9. Dağıtım
+
+| Bileşen | URL |
+|---------|-----|
+| Web (prod) | https://web-zephyr8.vercel.app |
+| Backend | https://zephyr-backend-2mtm.onrender.com |
+| GitHub | https://github.com/texas1881/zephyr-ai-urban-solutions (`develop`) |
+
+### Vercel env (zorunlu)
+- `GOOGLE_STREET_VIEW_API_KEY`
+- `HUGGINGFACE_API_TOKEN`
+- `HF_VISION_MODEL`, `HF_THINKING_MODEL`, `HF_ARBITER_MODEL`
+- `NEXT_PUBLIC_BACKEND_URL`
+
+### Render env
+- `DATABASE_URL`, `JWT_SECRET`
+- `KAFKA_ENABLED=false`
+
+---
+
+## 10. KVKK
+
+- Yalnızca kamusal alan, cansız obje analizi
+- Yüz/plaka tanıma yok
+- Ham görüntü kalıcı depolanmaz
+- Detay: `/kvkk`
+
+---
+
+## 11. Sonuç
+
+Zephyr hackathon kapsamında **uçtan uca çalışan**, benchmark ile **9.2/10** doğrulanmış, görsel kanıt overlay'li ve çoklu ajan konsensüslü bir saha denetim platformudur. Kritik teknik borç: **API güvenliği**, **kalıcı depolama** ve **production benchmark erişimi**. Bu oturumda 10 somut bug fix uygulandı; kalan maddeler P0–P3 yol haritasında listelenmiştir.
 
 ---
 
