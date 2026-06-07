@@ -103,9 +103,17 @@ export async function analyzeWithVlmFallback(
     }
   }
 
-  throw new Error(
-    `Tüm VLM modelleri başarısız: ${attempts.map((a) => a.model).join(" → ")}`,
+  const creditHit = attempts.find((a) =>
+    a.error?.includes("HF_CREDITS_EXHAUSTED"),
   );
+  if (creditHit) {
+    throw new Error(`HF_CREDITS_EXHAUSTED: ${creditHit.error}`);
+  }
+
+  const detail = attempts
+    .map((a) => `${a.model}: ${a.error ?? "ok"}`)
+    .join(" | ");
+  throw new Error(`Tüm VLM modelleri başarısız — ${detail}`);
 }
 
 const RECALL_PROMPT = `Sen belediye saha denetim uzmanısın — İKİNCİ TUR (kaçan bulgular).

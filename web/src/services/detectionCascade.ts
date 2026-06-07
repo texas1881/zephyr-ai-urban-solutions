@@ -138,6 +138,8 @@ export async function runDetectionCascade(
       : "VLM başarısız";
     if (/HF_CREDITS_EXHAUSTED/i.test(msg)) {
       pipelineWarnings.push("Hugging Face VLM kredisi tükendi.");
+    } else {
+      pipelineWarnings.push(`VLM hatası: ${msg.slice(0, 140)}`);
     }
   }
 
@@ -252,17 +254,41 @@ export async function runDetectionCascade(
     } catch (geminiErr) {
       const msg =
         geminiErr instanceof Error ? geminiErr.message : "Gemini başarısız";
-      pipelineWarnings.push(`Gemini yedek analizi başarısız: ${msg.slice(0, 120)}`);
+      if (/GEMINI_CREDITS_EXHAUSTED/i.test(msg)) {
+        pipelineWarnings.push("Google AI Studio (Gemini) kredisi tükendi.");
+      } else {
+        pipelineWarnings.push(`Gemini yedek analizi başarısız: ${msg.slice(0, 120)}`);
+      }
     }
+  } else {
+    pipelineWarnings.push(
+      "Gemini yedek motoru için API anahtarı bulunamadı (GEMINI_API_KEY veya Google API key).",
+    );
   }
 
   const hfDown = pipelineWarnings.some((w) =>
-    /kredisi tükendi|desteklenmiyor/i.test(w),
+    /Hugging Face|HF|OWL|desteklenmiyor/i.test(w),
+  );
+  const geminiDown = pipelineWarnings.some((w) =>
+    /Gemini|Google AI/i.test(w),
   );
 
-  throw new AiPipelineUnavailableError(
-    hfDown
-      ? "Yapay zekâ servisi şu an kullanılamıyor: Hugging Face kredisi tükendi veya OWL modelleri devre dışı. Vercel'de GEMINI_API_KEY tanımlı olmalı — aksi halde sahte 'Temiz' sonuç üretilmez."
-      : "Çoklu ajan analizi tamamlanamadı. Lütfen birkaç dakika sonra tekrar deneyin.",
-  );
+  let message =
+    "Yapay zekâ analizi şu an çalışmıyor — sahte 'Temiz' sonuç üretilmedi.";
+  if (hfDown && geminiDown) {
+    message =
+      "Hem Hugging Face hem Google Gemini kredisi/limiti tükendi. HF: huggingface.co/settings/billing · Gemini: ai.studio/projects — kredi yükledikten sonra tekrar deneyin.";
+  } else if (geminiDown) {
+    message =
+      "Google Gemini kredisi tükendi veya API anahtarı geçersiz. ai.studio/projects üzerinden kredi yükleyin.";
+  } else if (hfDown) {
+    message =
+      "Hugging Face kredisi tükendi. huggingface.co/settings/billing üzerinden kredi yükleyin veya GEMINI_API_KEY tanımlayın.";
+  }
+
+  if (pipelineWarnings.length > 0) {
+    message += ` Detay: ${pipelineWarnings.join(" ")}`;
+  }
+
+  throw new AiPipelineUnavailableError(message);
 }

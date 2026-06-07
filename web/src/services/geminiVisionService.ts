@@ -18,10 +18,17 @@ function geminiModel(): string {
   );
 }
 
+/** GEMINI_API_KEY yoksa aynı Google projesindeki diğer anahtarları dene. */
 function geminiKey(): string | null {
-  const key = process.env.GEMINI_API_KEY?.trim();
-  return key || null;
+  return (
+    process.env.GEMINI_API_KEY?.trim() ||
+    process.env.GOOGLE_VISION_API_KEY?.trim() ||
+    process.env.GOOGLE_STREET_VIEW_API_KEY?.trim() ||
+    null
+  );
 }
+
+const MAIN_LABELS = new Set(["ön", "sağ", "arka", "sol"]);
 
 export function isGeminiVisionEnabled(): boolean {
   return Boolean(geminiKey());
@@ -45,7 +52,10 @@ export async function analyzeWithGeminiVision(
     },
   ];
 
-  for (const d of directions) {
+  const mainDirs = directions.filter((d) => MAIN_LABELS.has(d.label));
+  const scanDirs = mainDirs.length >= 4 ? mainDirs : directions.slice(0, 4);
+
+  for (const d of scanDirs) {
     parts.push({ text: `Yön: ${d.label}` });
     parts.push({
       inlineData: {
@@ -58,20 +68,29 @@ export async function analyzeWithGeminiVision(
   const model = geminiModel();
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
-  const res = await fetchWithRetry(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts }],
-      generationConfig: {
-        temperature: 0.08,
-        maxOutputTokens: 2048,
-      },
-    }),
-  });
+  const res = await fetchWithRetry(
+    url,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts }],
+        generationConfig: {
+          temperature: 0.08,
+          maxOutputTokens: 2048,
+        },
+      }),
+    },
+    { retries: 1, baseDelayMs: 800 },
+  );
 
   if (!res.ok) {
     const detail = await res.text();
+    if (res.status === 429 || /depleted|RESOURCE_EXHAUSTED/i.test(detail)) {
+      throw new Error(
+        `GEMINI_CREDITS_EXHAUSTED: Google AI Studio kredisi tükendi (${res.status})`,
+      );
+    }
     throw new Error(`Gemini vision ${res.status}: ${detail.slice(0, 240)}`);
   }
 
