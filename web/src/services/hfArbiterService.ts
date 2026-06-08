@@ -10,7 +10,7 @@ import {
 const DEFAULT_ARBITER_MODEL = "Qwen/Qwen2.5-7B-Instruct";
 
 const ARBITER_PROMPT = `Sen belediye operasyon koordinatörüsün (Arbiter Agent).
-Vision Agent ve Thinking Reviewer ortak bulguları sundu. Son kontrol yap.
+OWL/DETR kanıtı ve LLM sentez bulguları sunuldu. Son kontrol yap.
 
 KURALLAR:
 1. Tutarsız veya abartılı bulguları çıkar

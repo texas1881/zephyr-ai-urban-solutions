@@ -19,11 +19,11 @@ export async function GET() {
       data: {
         count: cases.length,
         imageSize: process.env.STREET_VIEW_IMAGE_SIZE || "640x640",
-        vlmChain: [
-          process.env.HF_VISION_MODEL,
-          process.env.HF_VISION_FALLBACK_MODEL,
-          process.env.HF_VISION_FALLBACK_2,
-        ].filter(Boolean),
+        detectionPipeline: [
+          "OWL/DETR",
+          process.env.HF_SYNTHESIS_MODEL || "Qwen/Qwen2.5-7B-Instruct",
+          process.env.HF_ARBITER_MODEL || "Qwen/Qwen2.5-7B-Instruct",
+        ],
         groundingDino: Boolean(process.env.HF_GROUNDING_DINO_ENDPOINT),
         cases,
       },

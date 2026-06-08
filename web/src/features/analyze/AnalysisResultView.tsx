@@ -69,13 +69,12 @@ export function AnalysisResultView({
   onDispatch,
 }: Props) {
   const modelLabel =
-    result.analysisModel === "hf-multi-agent"
-      ? "Çoklu ajan konsensüs (Vision + Thinking + Arbiter)"
-      : result.analysisModel === "hf-detection-llm"
-        ? "Kanıta dayalı yapay zekâ (Qwen2.5)"
-        : result.analysisModel === "hf-vision"
-          ? "Görsel zeka analizi (Qwen-VL)"
-          : "Nesne tespiti (DETR)";
+    result.analysisModel === "hf-multi-agent" ||
+      result.analysisModel === "hf-detection-llm"
+      ? "HF kanıt + LLM sentez (OWL/DETR + Qwen2.5)"
+      : result.analysisModel === "hf-vision"
+        ? "HF tespit pipeline (eski)"
+        : "Nesne tespiti (DETR)";
 
   const teams =
     result.recommendedTeams && result.recommendedTeams.length > 0

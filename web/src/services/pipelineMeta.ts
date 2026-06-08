@@ -64,16 +64,9 @@ export function buildPipelineMeta(
 
   const agents = degraded
     ? ["DETR Yedek Modu"]
-    : model === "hf-multi-agent"
-      ? [
-          "Vision Agent (Qwen-VL)",
-          "OWL/DETR Kanıt",
-          "Thinking Reviewer",
-          "Arbiter Konsensüs",
-        ]
-      : model === "hf-detection-llm"
-        ? ["OWL/DETR Kanıt", "LLM Sentez"]
-        : ["Görsel Tespit"];
+    : model === "hf-detection-llm" || model === "hf-multi-agent"
+      ? ["OWL/DETR Kanıt", "LLM Sentez", "Arbiter Konsensüs"]
+      : ["Görsel Tespit"];
 
   const avgConfidence =
     situations.length > 0

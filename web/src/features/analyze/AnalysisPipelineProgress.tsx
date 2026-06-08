@@ -10,9 +10,8 @@ const STAGES = [
   { id: "geo", label: "Adres & koordinat doğrulama" },
   { id: "pano", label: "360° panorama — 8 kare Street View" },
   { id: "owl", label: "OWL/DETR görsel kanıt taraması" },
-  { id: "vision", label: "Vision Agent — Qwen-VL analizi" },
-  { id: "think", label: "Thinking Reviewer — halüsinasyon filtresi" },
-  { id: "arbiter", label: "Arbiter — çoklu ajan konsensüs" },
+  { id: "synth", label: "LLM sentez — Qwen2.5 durum raporu" },
+  { id: "arbiter", label: "Arbiter — tutarlılık kontrolü" },
   { id: "report", label: "Saha mühendisliği raporu" },
 ] as const;
 
@@ -52,10 +51,10 @@ export function AnalysisPipelineProgress({ active }: Props) {
         <ScanPulse className="h-6 w-6 shrink-0 text-foreground" />
         <div>
           <p className="text-sm font-semibold text-foreground">
-            Çoklu ajan saha analizi
+            HF saha analizi
           </p>
           <p className="text-xs text-muted">
-            Vision · Thinking · Arbiter + görsel kanıt katmanı
+            OWL/DETR kanıt · LLM sentez · Arbiter
           </p>
         </div>
       </div>

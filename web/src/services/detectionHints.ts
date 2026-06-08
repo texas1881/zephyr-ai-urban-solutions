@@ -1,7 +1,7 @@
 import { filterSignificantDetections } from "@/services/ruleBasedSynthesis";
 import type { DirectionDetections } from "@/services/huggingFaceService";
 
-/** OWL/DETR kanıtını VLM prompt'una eklemek için metin üretir. */
+/** OWL/DETR kanıtını LLM sentez prompt'una eklemek için metin üretir. */
 export function formatDetectionHints(
   directions: DirectionDetections[],
 ): string {

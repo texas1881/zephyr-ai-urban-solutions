@@ -15,7 +15,7 @@ import {
 
 const STATS = [
   { Icon: IconStreetScan, label: "360° tarama", desc: "8 kare · zoom + zemin" },
-  { Icon: IconMultiAgent, label: "Çoklu ajan AI", desc: "Vision + Thinking" },
+  { Icon: IconMultiAgent, label: "HF tespit AI", desc: "OWL/DETR + LLM" },
   { Icon: IconTeamRoute, label: "Ekip yönlendirme", desc: "Temizlik & yol bakım" },
   { Icon: IconShieldKvkk, label: "KVKK uyumlu", desc: "Cansız obje analizi" },
 ] as const;

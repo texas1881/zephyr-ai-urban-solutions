@@ -89,7 +89,7 @@ export function AnalysisCredibilityPanel({ meta, degraded }: Props) {
           {
             icon: BadgeCheck,
             label: "Doğrulama",
-            value: degraded ? "Yedek" : "3 ajan",
+            value: degraded ? "Yedek" : "HF",
           },
         ].map(({ icon: Icon, label, value }) => (
           <motion.div
