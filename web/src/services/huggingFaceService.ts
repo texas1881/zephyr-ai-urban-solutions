@@ -103,6 +103,9 @@ async function postInference(model: string, body: unknown): Promise<unknown> {
     if (isHfCreditsError(res.status, detail)) {
       throw new Error(`HF_CREDITS_EXHAUSTED: ${detail.slice(0, 200)}`);
     }
+    if (res.status === 403 || /insufficient permissions/i.test(detail)) {
+      throw new Error(`HF_TOKEN_FORBIDDEN: ${detail.slice(0, 200)}`);
+    }
     if (isHfModelUnsupported(res.status, detail)) {
       throw new Error(`HF_MODEL_UNSUPPORTED: ${detail.slice(0, 200)}`);
     }

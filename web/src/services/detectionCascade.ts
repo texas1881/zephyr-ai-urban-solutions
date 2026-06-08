@@ -3,10 +3,6 @@
 import { collectDirectionDetections } from "@/services/hfDetectionPipeline";
 import { analyzeSituationsWithHFVision } from "@/services/hfVisionService";
 import { recallMissedUrbanIssues } from "@/services/hfVisionFallback";
-import {
-  analyzeWithGeminiVision,
-  isGeminiVisionEnabled,
-} from "@/services/geminiVisionService";
 import { AiPipelineUnavailableError } from "@/services/aiPipelineErrors";
 import { reviewWithThinkingAgent } from "@/services/hfThinkingReviewer";
 import { arbitrateAnalysis } from "@/services/hfArbiterService";
@@ -138,6 +134,10 @@ export async function runDetectionCascade(
       : "VLM başarısız";
     if (/HF_CREDITS_EXHAUSTED/i.test(msg)) {
       pipelineWarnings.push("Hugging Face VLM kredisi tükendi.");
+    } else if (/HF_TOKEN_FORBIDDEN/i.test(msg)) {
+      pipelineWarnings.push(
+        "Hugging Face token yetkisi yetersiz (Inference izni gerekli).",
+      );
     } else {
       pipelineWarnings.push(`VLM hatası: ${msg.slice(0, 140)}`);
     }
@@ -235,55 +235,20 @@ export async function runDetectionCascade(
     }
   }
 
-  if (isGeminiVisionEnabled()) {
-    try {
-      const hints =
-        directions.length > 0 ? formatDetectionHints(directions) : undefined;
-      const gemini = await analyzeWithGeminiVision(address, input, hints);
-      const validated = validateSituationAnalysis(gemini, RECALL_OPTS);
-      pipelineWarnings.push(
-        "Hugging Face kullanılamadı — Gemini Vision yedek motoru devrede.",
-      );
-      return {
-        analysis: validated,
-        model: "gemini-vision",
-        directions,
-        degraded: true,
-        pipelineWarnings,
-      };
-    } catch (geminiErr) {
-      const msg =
-        geminiErr instanceof Error ? geminiErr.message : "Gemini başarısız";
-      if (/GEMINI_CREDITS_EXHAUSTED/i.test(msg)) {
-        pipelineWarnings.push("Google AI Studio (Gemini) kredisi tükendi.");
-      } else {
-        pipelineWarnings.push(`Gemini yedek analizi başarısız: ${msg.slice(0, 120)}`);
-      }
-    }
-  } else {
-    pipelineWarnings.push(
-      "Gemini yedek motoru için API anahtarı bulunamadı (GEMINI_API_KEY veya Google API key).",
-    );
+  if (vlmResult.status === "fulfilled") {
+    return {
+      analysis: validateSituationAnalysis(vlmResult.value, CONSENSUS_OPTS),
+      model: "hf-multi-agent",
+      directions,
+      pipelineWarnings: pipelineWarnings.length ? pipelineWarnings : undefined,
+    };
   }
 
-  const hfDown = pipelineWarnings.some((w) =>
-    /Hugging Face|HF|OWL|desteklenmiyor/i.test(w),
-  );
-  const geminiDown = pipelineWarnings.some((w) =>
-    /Gemini|Google AI/i.test(w),
-  );
-
   let message =
-    "Yapay zekâ analizi şu an çalışmıyor — sahte 'Temiz' sonuç üretilmedi.";
-  if (hfDown && geminiDown) {
+    "Hugging Face analiz pipeline'ı çalışamadı — sahte 'Temiz' sonuç üretilmedi.";
+  if (pipelineWarnings.some((w) => /kredisi tükendi|403|yetki/i.test(w))) {
     message =
-      "Hem Hugging Face hem Google Gemini kredisi/limiti tükendi. HF: huggingface.co/settings/billing · Gemini: ai.studio/projects — kredi yükledikten sonra tekrar deneyin.";
-  } else if (geminiDown) {
-    message =
-      "Google Gemini kredisi tükendi veya API anahtarı geçersiz. ai.studio/projects üzerinden kredi yükleyin.";
-  } else if (hfDown) {
-    message =
-      "Hugging Face kredisi tükendi. huggingface.co/settings/billing üzerinden kredi yükleyin veya GEMINI_API_KEY tanımlayın.";
+      "Hugging Face kullanılamıyor (kredi tükendi veya token yetkisi yetersiz). huggingface.co/settings/tokens üzerinden Inference yetkili token oluşturun.";
   }
 
   if (pipelineWarnings.length > 0) {

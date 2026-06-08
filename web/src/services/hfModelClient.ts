@@ -41,6 +41,9 @@ export async function hfChatCompletion(opts: ChatOptions): Promise<string> {
       if (res.status === 402 || /depleted your monthly included credits/i.test(detail)) {
         throw new Error(`HF_CREDITS_EXHAUSTED: ${detail.slice(0, 200)}`);
       }
+      if (res.status === 403 || /insufficient permissions/i.test(detail)) {
+        throw new Error(`HF_TOKEN_FORBIDDEN: ${detail.slice(0, 200)}`);
+      }
       throw new Error(`HF chat ${res.status}: ${detail.slice(0, 240)}`);
     }
     const body = await res.json();

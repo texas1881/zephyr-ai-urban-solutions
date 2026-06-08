@@ -63,9 +63,7 @@ export function buildPipelineMeta(
     overlays?.reduce((n, o) => n + o.boxes.length, 0) ?? detectionHits;
 
   const agents = degraded
-    ? model === "gemini-vision"
-      ? ["Gemini Vision (yedek)", "Street View 360°"]
-      : ["DETR Yedek Modu"]
+    ? ["DETR Yedek Modu"]
     : model === "hf-multi-agent"
       ? [
           "Vision Agent (Qwen-VL)",
@@ -73,8 +71,6 @@ export function buildPipelineMeta(
           "Thinking Reviewer",
           "Arbiter Konsensüs",
         ]
-      : model === "gemini-vision"
-        ? ["Gemini Vision", "Street View 360°"]
       : model === "hf-detection-llm"
         ? ["OWL/DETR Kanıt", "LLM Sentez"]
         : ["Görsel Tespit"];

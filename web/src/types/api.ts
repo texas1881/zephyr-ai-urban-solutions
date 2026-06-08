@@ -125,7 +125,6 @@ export type AnalysisResult = {
     | "hf-multi-agent"
     | "hf-detection-llm"
     | "hf-vision"
-    | "gemini-vision"
     | "object-detection";
   /** Detected field situations (litter / road damage / ...). */
   situations: DetectedSituation[];
